@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  weight      String   @unique // "250gm", "500gm", "750gm", "1kg"
+  weightGrams Int      // 250, 500, 750, 1000
+  price       Int      // in rupees
+  inStock     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+}
+
+model OtpSession {
+  id        String   @id @default(cuid())
+  phone     String
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([phone])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  customerName  String
+  phone         String
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  quantity      Int         @default(1)
+  totalAmount   Int         // in rupees
+  status        OrderStatus @default(OTP_PENDING)
+  streetAddress String?
+  city          String?
+  pincode       String?
+  otpSessionId  String?
+  paymentExpiry DateTime?
+  paidAt        DateTime?
+  pickedUpAt    DateTime?
+  adminNotes    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([phone])
+}
+
+enum OrderStatus {
+  OTP_PENDING
+  OTP_VERIFIED
+  PAYMENT_PENDING
+  PAYMENT_REVIEW
+  PAID
+  PAYMENT_FAILED
+  OUT_OF_STOCK
+  READY_FOR_PICKUP
+  PICKED_UP
+  CANCELLED
+}
+
+model AppConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
