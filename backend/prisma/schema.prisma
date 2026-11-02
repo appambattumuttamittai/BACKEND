@@ -77,3 +77,16 @@ model AppConfig {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model Feedback {
+  id         String   @id @default(cuid())
+  name       String
+  rating     Int      // 1-5
+  message    String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isApproved])
+  @@index([createdAt])
+}

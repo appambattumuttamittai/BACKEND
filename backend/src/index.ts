@@ -14,6 +14,7 @@ import paymentsRoutes from './modules/payments/payments.routes';
 import productsRoutes from './modules/products/products.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import configRoutes from './modules/config/config.routes';
+import feedbackRoutes from './modules/feedback/feedback.routes';
 
 async function start() {
   const config = getConfig();
@@ -43,8 +44,14 @@ async function start() {
   await app.register(rateLimitPlugin);
   await app.register(prismaPlugin);
 
+  // Root route
+  app.get('/', async (_request, reply) => {
+    return reply.send({ status: 'ok', service: 'muttamittai-backend' });
+  });
+
   // Routes
   await app.register(healthRoutes, { prefix: '/health' });
+  await app.register(healthRoutes, { prefix: '/api/health' });
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(otpRoutes, { prefix: '/api/otp' });
   await app.register(ordersRoutes, { prefix: '/api/orders' });
@@ -52,6 +59,7 @@ async function start() {
   await app.register(productsRoutes, { prefix: '/api/products' });
   await app.register(adminRoutes, { prefix: '/api/admin' });
   await app.register(configRoutes, { prefix: '/api/config' });
+  await app.register(feedbackRoutes, { prefix: '/api/feedback' });
 
   // Global error handler
   app.setErrorHandler((error, _request, reply) => {
