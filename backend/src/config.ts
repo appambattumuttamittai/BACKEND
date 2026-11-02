@@ -37,7 +37,7 @@ export function getConfig(): Env {
       );
       process.exit(1);
     }
-    _config = result.data;
+    _config = result.data as Env;
   }
-  return _config;
+  return _config as Env;
 }
