@@ -18,19 +18,19 @@
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/session": "^10.8.0",
     "@prisma/client": "^5.16.0",
+    "@types/node": "^20.14.11",
     "argon2": "^0.31.2",
     "axios": "^1.7.2",
     "fastify": "^4.28.1",
     "fastify-plugin": "^4.5.1",
     "google-auth-library": "^9.13.0",
     "googleapis": "^140.0.1",
+    "prisma": "^5.16.0",
     "twilio": "^5.2.3",
+    "typescript": "^5.5.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^20.14.11",
-    "prisma": "^5.16.0",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.5.3"
+    "ts-node-dev": "^2.0.0"
   }
 }
