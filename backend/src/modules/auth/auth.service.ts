@@ -1,4 +1,4 @@
-import * as argon2 from 'argon2';
+import * as bcrypt from 'bcryptjs';
 import { getConfig } from '../../config';
 import { FastifyRequest } from 'fastify';
 
@@ -9,7 +9,7 @@ export async function verifyAdminCredentials(
   const config = getConfig();
   if (username !== config.ADMIN_USERNAME) return false;
   try {
-    return await argon2.verify(config.ADMIN_PASSWORD_HASH, password);
+    return await bcrypt.compare(password, config.ADMIN_PASSWORD_HASH);
   } catch {
     return false;
   }
