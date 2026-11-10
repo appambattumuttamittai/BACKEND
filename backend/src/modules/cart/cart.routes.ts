@@ -44,7 +44,7 @@ const cartRoutes: FastifyPluginAsync = async (fastify) => {
       /* upsert */
       await fastify.prisma.appConfig.upsert({
         where:  { key: 'cart_notifications' },
-        create: { key: 'cart_notifications', value: JSON.stringify(notifications), description: 'Recent add-to-cart events' },
+        create: { key: 'cart_notifications', value: JSON.stringify(notifications) },
         update: { value: JSON.stringify(notifications) },
       });
 
