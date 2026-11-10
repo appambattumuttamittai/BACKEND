@@ -15,6 +15,7 @@ import productsRoutes from './modules/products/products.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import configRoutes from './modules/config/config.routes';
 import feedbackRoutes from './modules/feedback/feedback.routes';
+import cartRoutes from './modules/cart/cart.routes';
 
 async function start() {
   const config = getConfig();
@@ -60,6 +61,7 @@ async function start() {
   await app.register(adminRoutes, { prefix: '/api/admin' });
   await app.register(configRoutes, { prefix: '/api/config' });
   await app.register(feedbackRoutes, { prefix: '/api/feedback' });
+  await app.register(cartRoutes, { prefix: '/api/cart-notify' });
 
   // Global error handler
   app.setErrorHandler((error, _request, reply) => {

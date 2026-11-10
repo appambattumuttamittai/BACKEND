@@ -14,6 +14,25 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional().default(''),
   TWILIO_AUTH_TOKEN: z.string().optional().default(''),
   TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(''),
+  // OTP Provider selection ('firebase' | 'msg91' | 'twilio' | 'mock')
+  OTP_PROVIDER: z.string().default('firebase'),
+  // MSG91 configuration (for production)
+  MSG91_AUTH_KEY: z.string().optional().default(''),
+  MSG91_TEMPLATE_ID: z.string().optional().default(''),
+  MSG91_OTP_EXPIRY_MINUTES: z
+    .string()
+    .default('10')
+    .transform((v) => parseInt(v, 10)),
+  // Firebase Authentication configuration (for testing / dev)
+  FIREBASE_API_KEY: z.string().optional().default(''),
+  FIREBASE_PROJECT_ID: z.string().optional().default(''),
+  FIREBASE_CLIENT_EMAIL: z.string().optional().default(''),
+  FIREBASE_PRIVATE_KEY: z.string().optional().default(''),
+  FIREBASE_TEST_MODE: z
+    .string()
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
+  FIREBASE_TEST_OTP: z.string().default('123456'),
   TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
   TELEGRAM_CHAT_ID: z.string().optional().default(''),
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().optional().default('{}'),

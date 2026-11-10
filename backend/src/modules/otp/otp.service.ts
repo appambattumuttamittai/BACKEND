@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import {
-  sendOtp as twilioSend,
-  verifyOtp as twilioVerify,
-} from '../../services/twilio.service';
+  sendOtp as providerSendOtp,
+  verifyOtp as providerVerifyOtp,
+} from '../../services/otp';
 
 export async function initiateOtp(
   prisma: PrismaClient,
@@ -19,7 +19,7 @@ export async function initiateOtp(
     throw new Error('TOO_MANY_REQUESTS');
   }
 
-  await twilioSend(phone);
+  await providerSendOtp(phone);
 
   const session = await prisma.otpSession.create({
     data: {
@@ -56,7 +56,7 @@ export async function validateOtp(
     });
   }
 
-  const verified = await twilioVerify(phone, code);
+  const verified = await providerVerifyOtp(phone, code, sessionId);
   if (!verified) return { valid: false, sessionId: sessionId || null };
 
   if (sessionId) {
