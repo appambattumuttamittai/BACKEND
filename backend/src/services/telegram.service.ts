@@ -60,3 +60,31 @@ ${order.city ? `📍 <b>City:</b> ${order.city}` : ''}
 
   await sendTelegramMessage(message);
 }
+
+export async function sendTelegramDocument(
+  fileBuffer: Buffer,
+  filename: string,
+  caption?: string
+): Promise<void> {
+  const config = getConfig();
+  if (!config.TELEGRAM_BOT_TOKEN || !config.TELEGRAM_CHAT_ID) return;
+
+  try {
+    const formData = new FormData();
+    formData.append('chat_id', config.TELEGRAM_CHAT_ID);
+    if (caption) {
+      formData.append('caption', caption);
+      formData.append('parse_mode', 'HTML');
+    }
+    const blob = new Blob([fileBuffer], { type: 'application/pdf' });
+    formData.append('document', blob, filename);
+
+    await axios.post(
+      `https://api.telegram.org/bot${config.TELEGRAM_BOT_TOKEN}/sendDocument`,
+      formData,
+      { timeout: 15000 }
+    );
+  } catch (err) {
+    console.error('Telegram sendDocument failed (non-fatal):', (err as Error).message);
+  }
+}

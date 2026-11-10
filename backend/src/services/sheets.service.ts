@@ -54,7 +54,18 @@ export async function appendOrderToSheet(order: {
   }
 }
 
-export async function updateOrderInSheet(orderId: string, status: string): Promise<void> {
+export async function updateOrderInSheet(
+  orderId: string,
+  status: string,
+  orderData?: {
+    customerName: string;
+    phone: string;
+    weight: string;
+    amount: number;
+    city: string;
+    createdAt: Date;
+  }
+): Promise<void> {
   try {
     const { sheets, config } = await getSheetsClient();
 
@@ -74,6 +85,17 @@ export async function updateOrderInSheet(orderId: string, status: string): Promi
         range: `${config.GOOGLE_SHEETS_SHEET_NAME}!F${rowNum}`,
         valueInputOption: 'RAW',
         requestBody: { values: [[status]] },
+      });
+    } else if (orderData) {
+      await appendOrderToSheet({
+        id: orderId,
+        customerName: orderData.customerName,
+        phone: orderData.phone,
+        weight: orderData.weight,
+        amount: orderData.amount,
+        status,
+        city: orderData.city,
+        createdAt: orderData.createdAt,
       });
     }
   } catch (err) {

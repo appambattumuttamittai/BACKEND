@@ -6,6 +6,13 @@ export const createOrderSchema = z.object({
     .string()
     .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),
   productId: z.string().min(1, 'Product is required'),
+  quantity: z.number().int().positive().optional().default(1),
+  items: z.array(
+    z.object({
+      productId: z.string(),
+      quantity: z.number().int().positive(),
+    })
+  ).optional(),
   otpSessionId: z.string().min(1, 'OTP verification required'),
   streetAddress: z.string().min(1, 'Street address is required').max(200),
   city: z.string().min(1, 'City is required').max(100),

@@ -8,6 +8,8 @@ export async function createOrder(
     customerName: string;
     phone: string;
     productId: string;
+    quantity?: number;
+    items?: Array<{ productId: string; quantity: number }>;
     otpSessionId: string;
     streetAddress: string;
     city: string;
@@ -27,12 +29,46 @@ export async function createOrder(
     throw new Error('OTP_NOT_VERIFIED');
   }
 
-  // Get product price from DB (never trust frontend price)
-  const product = await prisma.product.findUnique({
-    where: { id: data.productId },
-  });
-  if (!product) throw new Error('PRODUCT_NOT_FOUND');
-  if (!product.inStock) throw new Error('OUT_OF_STOCK');
+  let primaryProductId: string;
+  let totalQuantity = 0;
+  let totalAmount = 0;
+  let itemsSummary = '';
+
+  if (data.items && data.items.length > 0) {
+    const resolvedItems = [];
+    for (const item of data.items) {
+      const p = await prisma.product.findFirst({
+        where: {
+          OR: [{ id: item.productId }, { weight: item.productId }],
+        },
+      });
+      if (!p) throw new Error('PRODUCT_NOT_FOUND');
+      if (!p.inStock) throw new Error('OUT_OF_STOCK');
+      const qty = item.quantity > 0 ? item.quantity : 1;
+      resolvedItems.push({ product: p, quantity: qty });
+      totalAmount += p.price * qty;
+      totalQuantity += qty;
+    }
+    primaryProductId = resolvedItems[0].product.id;
+    itemsSummary = resolvedItems.map((r) => `${r.product.weight} × ${r.quantity}`).join(', ');
+  } else {
+    // Get product price from DB (never trust frontend price)
+    const product = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: data.productId },
+          { weight: data.productId },
+        ],
+      },
+    });
+    if (!product) throw new Error('PRODUCT_NOT_FOUND');
+    if (!product.inStock) throw new Error('OUT_OF_STOCK');
+    const qty = data.quantity && data.quantity > 0 ? data.quantity : 1;
+    primaryProductId = product.id;
+    totalQuantity = qty;
+    totalAmount = product.price * qty;
+    itemsSummary = `${product.weight} × ${qty}`;
+  }
 
   // 90 second payment window
   const paymentExpiry = new Date(Date.now() + 90 * 1000);
@@ -41,14 +77,16 @@ export async function createOrder(
     data: {
       customerName: data.customerName,
       phone: data.phone,
-      productId: data.productId,
-      totalAmount: product.price,
+      productId: primaryProductId,
+      quantity: totalQuantity,
+      totalAmount,
       streetAddress: data.streetAddress,
       city: data.city,
       pincode: data.pincode,
       otpSessionId: data.otpSessionId,
       status: OrderStatus.PAYMENT_PENDING,
       paymentExpiry,
+      adminNotes: itemsSummary,
     },
     include: { product: true },
   });
@@ -58,7 +96,7 @@ export async function createOrder(
     id: order.id,
     customerName: order.customerName,
     phone: order.phone,
-    weight: product.weight,
+    weight: itemsSummary,
     price: order.totalAmount,
     status: 'PAYMENT_PENDING',
     city: order.city || '',
@@ -68,14 +106,14 @@ export async function createOrder(
     id: order.id,
     customerName: order.customerName,
     phone: order.phone,
-    weight: product.weight,
+    weight: itemsSummary,
     amount: order.totalAmount,
     status: 'PAYMENT_PENDING',
     city: order.city || '',
     createdAt: order.createdAt,
   }).catch(console.error);
 
-  return order;
+  return { ...order, itemsSummary };
 }
 
 export async function expireStaleOrders(prisma: PrismaClient): Promise<number> {

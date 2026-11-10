@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { createOrderSchema } from './orders.schema';
 import { createOrder, expireStaleOrders } from './orders.service';
+import { generateOrderInvoicePDF } from '../../services/pdf.service';
 
 const ordersRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
@@ -25,8 +26,8 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
           paymentExpiry: order.paymentExpiry,
           status: order.status,
           product: {
-            weight: order.product.weight,
-            price: order.product.price,
+            weight: (order as any).itemsSummary || order.product.weight,
+            price: order.totalAmount,
           },
         });
       } catch (err: unknown) {
@@ -59,8 +60,8 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       customerName: order.customerName,
       phone: order.phone.slice(0, 2) + '****' + order.phone.slice(-4),
       product: {
-        weight: order.product.weight,
-        price: order.product.price,
+        weight: order.adminNotes || order.product.weight,
+        price: order.totalAmount,
       },
       totalAmount: order.totalAmount,
       status: order.status,
@@ -68,6 +69,45 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
       city: order.city,
       createdAt: order.createdAt,
     });
+  });
+
+  fastify.get('/:id/invoice.pdf', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const order = await fastify.prisma.order.findUnique({
+      where: { id },
+      include: { product: true },
+    });
+
+    if (!order) return reply.status(404).send({ error: 'Order not found' });
+
+    const pdfBuffer = generateOrderInvoicePDF(order);
+
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header(
+        'Content-Disposition',
+        `attachment; filename="Invoice-${order.id.slice(-8).toUpperCase()}.pdf"`
+      )
+      .header('Cache-Control', 'public, max-age=3600')
+      .send(pdfBuffer);
+  });
+
+  fastify.get('/:id/receipt.pdf', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const order = await fastify.prisma.order.findUnique({
+      where: { id },
+      include: { product: true },
+    });
+    if (!order) return reply.status(404).send({ error: 'Order not found' });
+    const pdfBuffer = generateOrderInvoicePDF(order);
+    return reply
+      .header('Content-Type', 'application/pdf')
+      .header(
+        'Content-Disposition',
+        `attachment; filename="Receipt-${order.id.slice(-8).toUpperCase()}.pdf"`
+      )
+      .send(pdfBuffer);
   });
 };
 
