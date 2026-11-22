@@ -28,7 +28,6 @@
     "google-auth-library": "^9.13.0",
     "googleapis": "^140.0.1",
     "prisma": "^5.16.0",
-    "twilio": "^5.2.3",
     "typescript": "^5.5.3",
     "zod": "^3.23.8"
   },
