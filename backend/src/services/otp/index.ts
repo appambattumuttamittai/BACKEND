@@ -2,12 +2,10 @@ import { getConfig } from '../../config';
 import { OtpProvider } from './otp.types';
 import { msg91Provider } from './msg91.provider';
 import { firebaseProvider } from './firebase.provider';
-import { twilioProvider } from './twilio.provider';
 
 export * from './otp.types';
 export { msg91Provider } from './msg91.provider';
 export { firebaseProvider } from './firebase.provider';
-export { twilioProvider } from './twilio.provider';
 
 export function getOtpProvider(): OtpProvider {
   const config = getConfig();
@@ -16,8 +14,6 @@ export function getOtpProvider(): OtpProvider {
   switch (provider) {
     case 'msg91':
       return msg91Provider;
-    case 'twilio':
-      return twilioProvider;
     case 'firebase':
     default:
       return firebaseProvider;

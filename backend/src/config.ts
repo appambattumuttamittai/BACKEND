@@ -11,10 +11,7 @@ const envSchema = z.object({
   ADMIN_USERNAME: z.string().default('admin'),
   ADMIN_PASSWORD_HASH: z.string().default('$2b$10$placeholder_hash_change_me_asap'),
   ADMIN_SESSION_SECRET: z.string().default('default-session-secret-change-me-32ch'),
-  TWILIO_ACCOUNT_SID: z.string().optional().default(''),
-  TWILIO_AUTH_TOKEN: z.string().optional().default(''),
-  TWILIO_VERIFY_SERVICE_SID: z.string().optional().default(''),
-  // OTP Provider selection ('firebase' | 'msg91' | 'twilio' | 'mock')
+  // OTP Provider selection ('firebase' | 'msg91')
   OTP_PROVIDER: z.string().default('firebase'),
   // MSG91 configuration (for production)
   MSG91_AUTH_KEY: z.string().optional().default(''),
