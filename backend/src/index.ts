@@ -40,7 +40,7 @@ async function start() {
     cookie: {
       secure: config.NODE_ENV === 'production',
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'none',
       maxAge: 86400000, // 24h in ms
     },
   });

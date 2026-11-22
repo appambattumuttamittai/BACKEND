@@ -111,6 +111,16 @@ export async function verifyRazorpayPayment(
   });
 
   // Async notifications
+  const isPickupPaid =
+    Boolean(updated.streetAddress?.toLowerCase().includes('pick up') ||
+    updated.streetAddress?.toLowerCase().includes('store') ||
+    updated.city?.toLowerCase().includes('pickup') ||
+    updated.adminNotes?.includes('[STORE PICKUP]'));
+
+  const deliveryTextPaid = isPickupPaid
+    ? '🏬 Store Pickup (Villupuram Railway Station)'
+    : '🚚 Home Delivery (Within Villupuram City)';
+
   notifyOrder({
     id: updated.id,
     customerName: updated.customerName,
@@ -119,6 +129,9 @@ export async function verifyRazorpayPayment(
     price: updated.totalAmount,
     status: 'PAID',
     city: updated.city || '',
+    streetAddress: updated.streetAddress || '',
+    deliveryMethod: deliveryTextPaid,
+    transactionId: data.razorpayPaymentId,
   }).catch(console.error);
 
   // Generate Invoice PDF and send to Admin via Telegram

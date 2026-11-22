@@ -1,11 +1,6 @@
 import axios from 'axios';
 import { getConfig } from '../config';
 
-function maskPhone(phone: string): string {
-  if (phone.length <= 6) return '******';
-  return phone.slice(0, 2) + '****' + phone.slice(-4);
-}
-
 export async function sendTelegramMessage(message: string): Promise<void> {
   const config = getConfig();
   try {
@@ -19,11 +14,42 @@ export async function sendTelegramMessage(message: string): Promise<void> {
       { timeout: 5000 }
     );
   } catch (err) {
-    // Telegram failure should never crash the app
     console.error('Telegram notification failed (non-fatal):', (err as Error).message);
   }
 }
 
+// 🔔 NOTIFICATION 1 — Sent when order is created, before Razorpay payment
+export async function notifyOrderPending(order: {
+  id: string;
+  customerName: string;
+  phone: string;
+  weight: string;
+  price: number;
+  streetAddress: string;
+  city: string;
+  deliveryMethod: string;
+}): Promise<void> {
+  const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const message = `
+🛒 <b>New Customer on Order Page!</b>
+
+👤 <b>Name:</b> ${order.customerName}
+📱 <b>Phone:</b> <code>${order.phone}</code>
+📦 <b>Order:</b> ${order.weight}
+💰 <b>Amount:</b> ₹${order.price}
+🚚 <b>Delivery:</b> ${order.deliveryMethod}
+📍 <b>Address:</b> ${order.streetAddress}
+🏙️ <b>City:</b> ${order.city}
+🆔 <b>Order ID:</b> <code>${order.id.slice(-8).toUpperCase()}</code>
+⏰ <b>Time:</b> ${time}
+
+⏳ <i>Waiting for payment...</i>
+  `.trim();
+
+  await sendTelegramMessage(message);
+}
+
+// ✅ NOTIFICATION 2 — Sent after Razorpay payment is confirmed
 export async function notifyOrder(order: {
   id: string;
   customerName: string;
@@ -31,7 +57,10 @@ export async function notifyOrder(order: {
   weight: string;
   price: number;
   status: string;
-  city?: string;
+  city: string;
+  streetAddress?: string;
+  deliveryMethod?: string;
+  transactionId?: string;
 }): Promise<void> {
   const statusEmoji: Record<string, string> = {
     PAYMENT_PENDING: '⏳',
@@ -44,18 +73,22 @@ export async function notifyOrder(order: {
   };
 
   const emoji = statusEmoji[order.status] || '📋';
+  const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
 
   const message = `
-${emoji} <b>Mutta Mittai – Order Update</b>
+${emoji} <b>Mutta Mittai — Order ${order.status === 'PAID' ? 'PAID ✅' : 'Update'}</b>
 
-📦 <b>Order ID:</b> <code>${order.id.slice(-8).toUpperCase()}</code>
+🆔 <b>Order ID:</b> <code>${order.id.slice(-8).toUpperCase()}</code>
 👤 <b>Customer:</b> ${order.customerName}
-📱 <b>Phone:</b> ${maskPhone(order.phone)}
-⚖️ <b>Weight:</b> ${order.weight}
+📱 <b>Phone:</b> <code>${order.phone}</code>
+📦 <b>Items:</b> ${order.weight}
 💰 <b>Amount:</b> ₹${order.price}
 📊 <b>Status:</b> <b>${order.status}</b>
-${order.city ? `📍 <b>City:</b> ${order.city}` : ''}
-⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+${order.deliveryMethod ? `🚚 <b>Delivery:</b> ${order.deliveryMethod}` : ''}
+${order.streetAddress ? `📍 <b>Address:</b> ${order.streetAddress}` : ''}
+🏙️ <b>City:</b> ${order.city}
+${order.transactionId ? `💳 <b>Transaction ID:</b> <code>${order.transactionId}</code>` : ''}
+⏰ <b>Time:</b> ${time}
   `.trim();
 
   await sendTelegramMessage(message);

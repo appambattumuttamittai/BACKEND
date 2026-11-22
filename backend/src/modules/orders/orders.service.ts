@@ -1,5 +1,5 @@
 import { PrismaClient, OrderStatus } from '@prisma/client';
-import { notifyOrder } from '../../services/telegram.service';
+import { notifyOrderPending } from '../../services/telegram.service';
 import { appendOrderToSheet } from '../../services/sheets.service';
 
 export async function createOrder(
@@ -109,14 +109,21 @@ export async function createOrder(
   });
 
   // Async notifications - don't block response
-  notifyOrder({
+  const isPickup = data.streetAddress?.toLowerCase().includes('pick up') ||
+    data.streetAddress?.toLowerCase().includes('store');
+  const deliveryText = isPickup
+    ? '🏬 Store Pickup (Villupuram Railway Station)'
+    : '🚚 Home Delivery (Within Villupuram City)';
+
+  notifyOrderPending({
     id: order.id,
     customerName: order.customerName,
     phone: order.phone,
     weight: itemsSummary,
     price: order.totalAmount,
-    status: 'PAYMENT_PENDING',
+    streetAddress: order.streetAddress || '',
     city: order.city || '',
+    deliveryMethod: deliveryText,
   }).catch(console.error);
 
   appendOrderToSheet({
