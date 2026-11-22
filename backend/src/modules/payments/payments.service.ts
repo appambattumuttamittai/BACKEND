@@ -123,6 +123,16 @@ export async function verifyRazorpayPayment(
 
   // Generate Invoice PDF and send to Admin via Telegram
   try {
+    const isPickup =
+      Boolean(updated.streetAddress?.toLowerCase().includes('pick up') ||
+      updated.streetAddress?.toLowerCase().includes('store') ||
+      updated.city?.toLowerCase().includes('pickup') ||
+      updated.adminNotes?.includes('[STORE PICKUP]'));
+
+    const deliveryMethodText = isPickup
+      ? '🏬 Pick Up in Store (Villupuram Railway Station)'
+      : '🚚 HOME DELIVERY (Within Villupuram City)';
+
     const pdfBuffer = generateOrderInvoicePDF({
       ...updated,
       transactionId: data.razorpayPaymentId,
@@ -130,7 +140,7 @@ export async function verifyRazorpayPayment(
     sendTelegramDocument(
       pdfBuffer,
       `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
-      `🧾 <b>Invoice & Order Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n✅ Status: PAID / CONFIRMED`
+      `🧾 <b>Official Tax Invoice & Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n📍 Delivery: ${deliveryMethodText}\n✅ Status: PAID / CONFIRMED`
     ).catch(console.error);
   } catch (pdfErr) {
     console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);

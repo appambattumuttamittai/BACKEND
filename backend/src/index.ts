@@ -21,6 +21,11 @@ async function start() {
   const config = getConfig();
 
   const app = Fastify({
+    trustProxy: true,
+    connectionTimeout: 30000,
+    keepAliveTimeout: 65000,
+    maxParamLength: 500,
+    bodyLimit: 1048576,
     logger: {
       level: config.NODE_ENV === 'production' ? 'info' : 'debug',
       redact: ['req.headers.authorization', 'body.phone', 'body.password'],

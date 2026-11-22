@@ -29,6 +29,23 @@ export async function createOrder(
     throw new Error('OTP_NOT_VERIFIED');
   }
 
+  // Idempotency: prevent duplicate/fake orders if user double-clicks or taps multiple times
+  const existingOrder = await prisma.order.findFirst({
+    where: {
+      otpSessionId: data.otpSessionId,
+      status: OrderStatus.PAYMENT_PENDING,
+      paymentExpiry: { gt: new Date() },
+    },
+    include: { product: true },
+  });
+
+  if (existingOrder) {
+    return {
+      ...existingOrder,
+      itemsSummary: existingOrder.adminNotes || existingOrder.product.weight,
+    };
+  }
+
   let primaryProductId: string;
   let totalQuantity = 0;
   let totalAmount = 0;
@@ -70,8 +87,8 @@ export async function createOrder(
     itemsSummary = `${product.weight} × ${qty}`;
   }
 
-  // 90 second payment window
-  const paymentExpiry = new Date(Date.now() + 90 * 1000);
+  // 30 minute payment window
+  const paymentExpiry = new Date(Date.now() + 30 * 60 * 1000);
 
   const order = await prisma.order.create({
     data: {
@@ -82,7 +99,7 @@ export async function createOrder(
       totalAmount,
       streetAddress: data.streetAddress,
       city: data.city,
-      pincode: data.pincode,
+      pincode: data.pincode || '605602',
       otpSessionId: data.otpSessionId,
       status: OrderStatus.PAYMENT_PENDING,
       paymentExpiry,
@@ -116,13 +133,24 @@ export async function createOrder(
   return { ...order, itemsSummary };
 }
 
+let lastExpirationCheck = 0;
 export async function expireStaleOrders(prisma: PrismaClient): Promise<number> {
-  const result = await prisma.order.updateMany({
-    where: {
-      status: OrderStatus.PAYMENT_PENDING,
-      paymentExpiry: { lt: new Date() },
-    },
-    data: { status: OrderStatus.PAYMENT_FAILED },
-  });
-  return result.count;
+  const now = Date.now();
+  if (now - lastExpirationCheck < 30_000) {
+    return 0; // Throttled to avoid DB write-lock contention under heavy concurrency
+  }
+  lastExpirationCheck = now;
+  try {
+    const result = await prisma.order.updateMany({
+      where: {
+        status: OrderStatus.PAYMENT_PENDING,
+        paymentExpiry: { lt: new Date() },
+      },
+      data: { status: OrderStatus.PAYMENT_FAILED },
+    });
+    return result.count;
+  } catch (err) {
+    console.error('Error expiring stale orders:', err);
+    return 0;
+  }
 }

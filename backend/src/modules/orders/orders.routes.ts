@@ -55,18 +55,31 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!order) return reply.status(404).send({ error: 'Order not found' });
 
+    // Clean up internal notes (e.g. "| Razorpay: pay_xxx") so public weight is always pristine
+    const cleanWeight = (order.adminNotes || order.product.weight)
+      .split(/\||\s*Razorpay:/i)[0]
+      .replace(/\[STORE PICKUP\]|\[HOME DELIVERY\]/gi, '')
+      .trim() || order.product.weight;
+
+    const txIdMatch = order.adminNotes?.match(/Razorpay:\s*([A-Za-z0-9_]+)/i);
+    const transactionId = txIdMatch ? txIdMatch[1] : undefined;
+
     return reply.send({
       id: order.id,
       customerName: order.customerName,
       phone: order.phone.slice(0, 2) + '****' + order.phone.slice(-4),
       product: {
-        weight: order.adminNotes || order.product.weight,
+        id: order.product.id,
+        weight: cleanWeight,
         price: order.totalAmount,
       },
       totalAmount: order.totalAmount,
       status: order.status,
       paymentExpiry: order.paymentExpiry,
+      streetAddress: order.streetAddress,
       city: order.city,
+      pincode: order.pincode,
+      transactionId,
       createdAt: order.createdAt,
     });
   });

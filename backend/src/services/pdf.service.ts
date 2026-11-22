@@ -1,6 +1,7 @@
 /**
  * Pure TypeScript PDF generator for Appambattu Mutta Mittai
  * Generates standards-compliant ISO 32000 / PDF 1.4 documents
+ * Formatted exactly according to modern corporate invoice specification
  * Zero external dependencies (fast, lightweight, 100% reliable)
  */
 
@@ -28,7 +29,7 @@ function escapePdfText(str: string): string {
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)')
-    .replace(/[^\x20-\x7E]/g, ''); // Ensure standard ASCII/Latin-1 characters
+    .replace(/[^\x20-\x7E]/g, ''); // Ensure standard ASCII/Latin-1 printable characters
 }
 
 class PDFBuilder {
@@ -62,202 +63,463 @@ class PDFBuilder {
   }
 }
 
+interface ParsedItem {
+  description: string;
+  unitPrice: number;
+  qty: number;
+  total: number;
+}
+
+function parseOrderItems(order: OrderInvoiceData): ParsedItem[] {
+  const items: ParsedItem[] = [];
+
+  // Price dictionary for default pack weights
+  const defaultPrices: Record<string, number> = {
+    '250gm': 150,
+    '500gm': 300,
+    '750gm': 450,
+    '1kg': 600,
+  };
+
+  const rawNotes = order.adminNotes?.split('|')[0]?.trim();
+
+  if (rawNotes && (rawNotes.includes('x') || rawNotes.includes('X') || rawNotes.includes('×') || rawNotes.includes('*'))) {
+    const parts = rawNotes.split(',').map((p) => p.trim()).filter(Boolean);
+    for (const part of parts) {
+      // Matches e.g. "250gm x 2", "500gm × 1", or "Mutta Mittai 500gm x 1"
+      const match = part.match(/(?:(.+?)\s+)?(\d+(?:gm|kg))\s*[xX*×\u00D7]\s*(\d+)/i);
+      if (match) {
+        const weight = match[2].toLowerCase();
+        const qty = parseInt(match[3], 10) || 1;
+        const unitPrice = defaultPrices[weight] || Math.round(order.totalAmount / qty);
+        items.push({
+          description: `Appampattu Mutta Mittai - ${weight.toUpperCase()} Pack`,
+          unitPrice,
+          qty,
+          total: unitPrice * qty,
+        });
+      } else {
+        items.push({
+          description: `Appampattu Mutta Mittai (${part})`,
+          unitPrice: order.totalAmount,
+          qty: 1,
+          total: order.totalAmount,
+        });
+      }
+    }
+  }
+
+  if (items.length === 0) {
+    if (order.product) {
+      const weight = order.product.weight || '500gm';
+      const unitPrice = order.product.price || order.totalAmount;
+      const qty = Math.max(1, Math.round(order.totalAmount / (unitPrice || 1)));
+      items.push({
+        description: `Appampattu Mutta Mittai - ${weight.toUpperCase()} Pack`,
+        unitPrice,
+        qty,
+        total: order.totalAmount,
+      });
+    } else {
+      items.push({
+        description: 'Appampattu Mutta Mittai - Traditional Egg Sweet Pack',
+        unitPrice: order.totalAmount,
+        qty: 1,
+        total: order.totalAmount,
+      });
+    }
+  }
+
+  return items;
+}
+
 export function generateOrderInvoicePDF(order: OrderInvoiceData): Buffer {
   const pdf = new PDFBuilder();
 
-  // Parse items from adminNotes (e.g. "250gm x 1, 500gm x 2") or fallback to product weight
-  const itemsText = order.adminNotes?.split('|')[0]?.trim() || (order.product ? `${order.product.weight} x 1` : 'Mutta Mittai Pack');
+  const invoiceNo = order.id.slice(-7).toUpperCase();
+  const txId =
+    order.transactionId ||
+    (order.adminNotes?.includes('Razorpay:')
+      ? order.adminNotes.split('Razorpay:')[1]?.trim()
+      : 'RZP_' + order.id.slice(-8).toUpperCase());
 
-  const formattedDate = new Date(order.paidAt || order.createdAt).toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata',
+  const orderDate = new Date(order.paidAt || order.createdAt);
+  const formattedDate = orderDate.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  const shortDate = orderDate.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
   });
 
-  const txId = order.transactionId || (order.adminNotes?.includes('Razorpay:') ? order.adminNotes.split('Razorpay:')[1]?.trim() : 'ONLINE_CONFIRMED');
-
-  // Commands stream for A4 page (595.28 x 841.89 pt)
-  // (0, 0) is bottom-left, (595, 842) is top-right
+  const parsedItems = parseOrderItems(order);
   const stream: string[] = [];
 
-  // Top Maroon Banner
-  stream.push('0.768 0.184 0.172 rg'); // Brand Maroon (#C42F2C)
-  stream.push('0 740 595.28 102 re f');
+  // ==========================================
+  // 1. TOP HEADER DECORATIVE SHAPES
+  // ==========================================
+  // Top right Lime Green polygon
+  stream.push('0.55 0.72 0.17 rg'); // Olive / Lime Green (#8CB82B)
+  stream.push('360 841.89 m 595.28 841.89 l 595.28 812 l 325 812 l h f');
 
-  // Top Banner Gold Accent Line
-  stream.push('0.96 0.71 0.11 rg'); // Brand Gold (#F5B51B)
-  stream.push('0 735 595.28 5 re f');
+  // Dark Slate / Charcoal polygon
+  stream.push('0.12 0.15 0.17 rg'); // Dark Slate (#1E252B)
+  stream.push('235 812 m 595.28 812 l 595.28 722 l 200 722 l h f');
 
-  // Banner Header Text
+  // Green Leaf Accent icon
+  stream.push('0.55 0.72 0.17 rg');
+  stream.push('222 758 14 14 re f');
+  stream.push('0.68 0.85 0.25 rg');
+  stream.push('230 766 10 10 re f');
+
+  // Company Name & Tagline inside Dark Polygon
   stream.push('BT');
-  stream.push('1 1 1 rg'); // White text
-  stream.push('/F2 20 Tf');
-  stream.push('40 802 Td');
+  stream.push('1 1 1 rg'); // White
+  stream.push('/F2 14.5 Tf');
+  stream.push('248 768 Td');
   stream.push(`(${escapePdfText('APPAMPATTU MUTTA MITTAI')}) Tj`);
-  stream.push('/F1 10 Tf');
-  stream.push('0 -16 Td');
-  stream.push(`(${escapePdfText('Traditional Authentic Egg Sweet  |  Meenambur, Villupuram, Tamil Nadu')}) Tj`);
-  stream.push('/F2 11 Tf');
-  stream.push('0 -16 Td');
-  stream.push(`(${escapePdfText('OFFICIAL TAX INVOICE & ORDER RECEIPT')}) Tj`);
+  stream.push('/F1 7.5 Tf');
+  stream.push('0.75 0.85 0.72 rg');
+  stream.push('0 -14 Td');
+  stream.push(`(${escapePdfText('AUTHENTIC VILLAGE TRADITIONAL EGG SWEET')}) Tj`);
   stream.push('ET');
 
-  // Invoice / Order Meta Box (Left & Right Column)
-  stream.push('0.98 0.96 0.92 rg'); // Light warm background
-  stream.push('40 575 515.28 140 re f');
-  stream.push('0.85 0.78 0.70 RG 1 w'); // Border
-  stream.push('40 575 515.28 140 re S');
-
-  // Meta Box Content
+  // Company Website under polygon
   stream.push('BT');
-  stream.push('0.23 0.11 0.06 rg'); // Dark Brown (#3A1C10)
-  
-  // Left Column: Order details
-  stream.push('/F2 11 Tf');
-  stream.push('55 690 Td');
-  stream.push(`(ORDER DETAILS) Tj`);
-  stream.push('/F1 9.5 Tf');
-  stream.push('0 -18 Td');
-  stream.push(`(Order ID:       #${escapePdfText(order.id.slice(-8).toUpperCase())}) Tj`);
-  stream.push('0 -15 Td');
-  stream.push(`(Full Ref:        ${escapePdfText(order.id)}) Tj`);
-  stream.push('0 -15 Td');
-  stream.push(`(Date & Time:  ${escapePdfText(formattedDate)}) Tj`);
-  stream.push('0 -15 Td');
-  stream.push(`(Txn ID:          ${escapePdfText(txId)}) Tj`);
-  stream.push('/F2 9.5 Tf');
-  stream.push('0.1 0.5 0.1 rg'); // Green for paid
-  stream.push('0 -15 Td');
-  stream.push(`(Payment:      PAID / VERIFIED) Tj`);
-
-  // Right Column: Customer details
-  stream.push('0.23 0.11 0.06 rg');
-  stream.push('/F2 11 Tf');
-  stream.push('260 78 Td'); // Move relative to previous point
-  stream.push(`(CUSTOMER / DELIVERY DETAILS) Tj`);
-  stream.push('/F1 9.5 Tf');
-  stream.push('0 -18 Td');
-  stream.push(`(Name:     ${escapePdfText(order.customerName)}) Tj`);
-  stream.push('0 -15 Td');
-  stream.push(`(Phone:    +91 ${escapePdfText(order.phone)}) Tj`);
-  stream.push('0 -15 Td');
-  stream.push(`(Street:    ${escapePdfText(order.streetAddress || 'Pick-up / Local')}) Tj`);
-  stream.push('0 -15 Td');
-  stream.push(`(City:       ${escapePdfText(order.city || 'Villupuram')}${order.pincode ? ' - ' + escapePdfText(order.pincode) : ''}) Tj`);
+  stream.push('0.40 0.40 0.40 rg');
+  stream.push('/F3 8.5 Tf');
+  stream.push('405 706 Td');
+  stream.push(`(${escapePdfText('www.appampattueggsweet.com')}) Tj`);
   stream.push('ET');
 
-  // Items Table Header
-  stream.push('0.768 0.184 0.172 rg'); // Maroon header
-  stream.push('40 525 515.28 26 re f');
+  // ==========================================
+  // 2. TOP LEFT: INVOICE TITLE & META
+  // ==========================================
+  stream.push('BT');
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push('/F2 26 Tf');
+  stream.push('40 766 Td');
+  stream.push(`(INVOICE) Tj`);
+  stream.push('ET');
+
+  stream.push('BT');
+  stream.push('0.35 0.35 0.35 rg');
+  stream.push('/F1 9 Tf');
+  stream.push('40 744 Td');
+  stream.push(`(Invoice No.            ${escapePdfText(invoiceNo)}) Tj`);
+  stream.push('0 -13 Td');
+  stream.push(`(Invoice Date:          ${escapePdfText(formattedDate)}) Tj`);
+  stream.push('/F2 9 Tf');
+  stream.push('0.15 0.55 0.15 rg'); // Green for paid
+  stream.push('0 -13 Td');
+  stream.push(`(Payment Status:     PAID  /  VERIFIED) Tj`);
+  stream.push('ET');
+
+  // Determine delivery choice (store pickup vs home delivery)
+  const isPickup =
+    Boolean(order.streetAddress?.toLowerCase().includes('pick up') ||
+    order.streetAddress?.toLowerCase().includes('store') ||
+    order.city?.toLowerCase().includes('pickup') ||
+    order.adminNotes?.includes('[STORE PICKUP]'));
+
+  const deliveryMethodTitle = isPickup
+    ? 'PICK UP IN STORE (Villupuram Railway Station)'
+    : 'HOME DELIVERY (Within Villupuram City)';
+
+  // ==========================================
+  // 3. INVOICE TO & ORDER REFERENCE ROW
+  // ==========================================
+  // Left: Invoice To
+  stream.push('BT');
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push('/F2 10.5 Tf');
+  stream.push('40 675 Td');
+  stream.push(`(Invoice To:) Tj`);
+  stream.push('/F2 12 Tf');
+  stream.push('0 -15 Td');
+  stream.push(`(${escapePdfText(order.customerName)}) Tj`);
+  stream.push('/F2 8.5 Tf');
+  stream.push('0.55 0.72 0.17 rg'); // Green accent
+  stream.push('0 -13 Td');
+  stream.push(`(Delivery: ${escapePdfText(deliveryMethodTitle)}) Tj`);
+  stream.push('/F1 8.5 Tf');
+  stream.push('0.40 0.40 0.40 rg');
+  stream.push('0 -12 Td');
+  stream.push(`(${escapePdfText(order.streetAddress || (isPickup ? 'Villupuram Railway Station (1st Platform)' : 'Villupuram City'))}) Tj`);
+  stream.push('0 -11 Td');
+  stream.push(`(${escapePdfText((order.city || 'Villupuram') + (order.pincode ? ' - ' + order.pincode : ''))}) Tj`);
+  stream.push('0 -11 Td');
+  stream.push(`(Phone: +91 ${escapePdfText(order.phone)}) Tj`);
+  stream.push('ET');
+
+  // Right: Order Meta Details
+  stream.push('BT');
+  stream.push('0.25 0.25 0.25 rg');
+  stream.push('/F1 9 Tf');
+  stream.push('390 660 Td');
+  stream.push(`(Invoice No.   ${escapePdfText(invoiceNo)}) Tj`);
+  stream.push('0 -13 Td');
+  stream.push(`(Txn Ref:       ${escapePdfText(txId.slice(0, 16))}) Tj`);
+  stream.push('0 -13 Td');
+  stream.push(`(Date:            ${escapePdfText(shortDate)}) Tj`);
+  stream.push('/F2 8.5 Tf');
+  stream.push('0.55 0.72 0.17 rg');
+  stream.push('0 -13 Td');
+  stream.push(`(${escapePdfText(isPickup ? 'Option: Store Pickup' : 'Option: Home Delivery')}) Tj`);
+  stream.push('ET');
+
+  // ==========================================
+  // 4. ITEMS TABLE
+  // ==========================================
+  const tableX = 40;
+  const tableW = 515.28;
+  const headerY = 562;
+  const headerH = 24;
+
+  // Header Left (Dark Slate)
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push(`${tableX} ${headerY} 265 ${headerH} re f`);
+
+  // Header Right (Lime Green)
+  stream.push('0.55 0.72 0.17 rg');
+  stream.push(`${tableX + 265} ${headerY} ${tableW - 265} ${headerH} re f`);
+
+  // Header Text
+  stream.push('BT');
+  stream.push('1 1 1 rg');
+  stream.push('/F2 8.5 Tf');
+  stream.push('52 570 Td');
+  stream.push(`(SL#) Tj`);
+  stream.push('45 0 Td');
+  stream.push(`(PRODUCT DESCRIPTION) Tj`);
+  stream.push('220 0 Td');
+  stream.push(`(UNIT PRICE) Tj`);
+  stream.push('76 0 Td');
+  stream.push(`(QTY.) Tj`);
+  stream.push('64 0 Td');
+  stream.push(`(TOTAL) Tj`);
+  stream.push('ET');
+
+  // Table Body Grid: 6 rows of 25pt = 150pt
+  const rowCount = 6;
+  const rowH = 25;
+  const bodyH = rowCount * rowH;
+  const bodyBottomY = headerY - bodyH; // 562 - 150 = 412
+
+  // Outer border & Column vertical dividers
+  stream.push('0.88 0.88 0.88 RG 0.75 w');
+  stream.push(`${tableX} ${bodyBottomY} ${tableW} ${bodyH} re S`);
+
+  // Column vertical lines
+  const colDividerXs = [
+    tableX + 45,  // SL# divider (85)
+    tableX + 265, // Product divider (305)
+    tableX + 345, // Unit Price divider (385)
+    tableX + 410, // Qty divider (450)
+  ];
+  for (const divX of colDividerXs) {
+    stream.push(`${divX} ${headerY} m ${divX} ${bodyBottomY} l S`);
+  }
+
+  // Horizontal row dividers
+  for (let r = 1; r < rowCount; r++) {
+    const rowLineY = headerY - r * rowH;
+    stream.push(`${tableX} ${rowLineY} m ${tableX + tableW} ${rowLineY} l S`);
+  }
+
+  // Populate Row Contents
+  for (let idx = 0; idx < rowCount; idx++) {
+    const rowY = headerY - idx * rowH - 16;
+    const slNumber = String(idx + 1).padStart(2, '0');
+    const item = parsedItems[idx];
+
+    stream.push('BT');
+    // Centered SL#
+    stream.push('0.40 0.40 0.40 rg');
+    stream.push('/F1 8.5 Tf');
+    stream.push(`55 ${rowY} Td`);
+    stream.push(`(${slNumber}) Tj`);
+
+    if (item) {
+      // Product Description
+      stream.push('0.20 0.20 0.20 rg');
+      stream.push('/F2 8.5 Tf');
+      stream.push('38 0 Td');
+      stream.push(`(${escapePdfText(item.description)}) Tj`);
+
+      // Unit Price
+      stream.push('/F1 8.5 Tf');
+      stream.push('220 0 Td');
+      stream.push(`(Rs. ${item.unitPrice.toFixed(2)}) Tj`);
+
+      // Qty
+      stream.push('82 0 Td');
+      stream.push(`(${item.qty}) Tj`);
+
+      // Total
+      stream.push('60 0 Td');
+      stream.push(`(Rs. ${item.total.toFixed(2)}) Tj`);
+    } else {
+      // Empty row placeholder showing $00.00 / Rs. 00.00 in total column to match template exactly
+      stream.push('0.60 0.60 0.60 rg');
+      stream.push('/F1 8 Tf');
+      stream.push('400 0 Td');
+      stream.push(`(Rs. 00.00) Tj`);
+    }
+    stream.push('ET');
+  }
+
+  // ==========================================
+  // 5. SUMMARY & TOTALS (RIGHT SIDE)
+  // ==========================================
+  const subtotal = order.totalAmount;
+  const totalsLeftX = 375;
+  const totalsValueX = 475;
+
+  // Subtotal row
+  stream.push('BT');
+  stream.push('0.35 0.35 0.35 rg');
+  stream.push('/F1 9 Tf');
+  stream.push(`${totalsLeftX} 390 Td`);
+  stream.push(`(Subtotal:) Tj`);
+  stream.push('/F2 9.5 Tf');
+  stream.push('0.20 0.20 0.20 rg');
+  stream.push(`100 0 Td`);
+  stream.push(`(Rs. ${subtotal.toFixed(2)}) Tj`);
+  stream.push('ET');
+
+  // Thin separator
+  stream.push('0.90 0.90 0.90 rg');
+  stream.push(`${totalsLeftX} 380 180.28 0.5 re f`);
+
+  // Taxation row
+  stream.push('BT');
+  stream.push('0.35 0.35 0.35 rg');
+  stream.push('/F1 9 Tf');
+  stream.push(`${totalsLeftX} 364 Td`);
+  stream.push(`(Taxation:) Tj`);
+  stream.push('/F1 9 Tf');
+  stream.push('0.20 0.20 0.20 rg');
+  stream.push(`100 0 Td`);
+  stream.push(`(Rs. 00.00) Tj`);
+  stream.push('ET');
+
+  // G. Total Green Box
+  stream.push('0.55 0.72 0.17 rg');
+  stream.push(`${totalsLeftX - 10} 324 190.28 26 re f`);
 
   stream.push('BT');
   stream.push('1 1 1 rg');
-  stream.push('/F2 10 Tf');
-  stream.push('55 533 Td');
-  stream.push(`(#) Tj`);
-  stream.push('35 0 Td');
-  stream.push(`(ITEM DESCRIPTION) Tj`);
-  stream.push('260 0 Td');
-  stream.push(`(QTY) Tj`);
-  stream.push('80 0 Td');
-  stream.push(`(AMOUNT) Tj`);
+  stream.push('/F2 10.5 Tf');
+  stream.push(`${totalsLeftX + 5} 333 Td`);
+  stream.push(`(G. Total) Tj`);
+  stream.push('/F2 11 Tf');
+  stream.push('95 0 Td');
+  stream.push(`(Rs. ${subtotal.toFixed(2)}) Tj`);
   stream.push('ET');
 
-  // Items Rows
-  const items = itemsText.split(',').map((s) => s.trim()).filter(Boolean);
-  let currentY = 500;
-
-  stream.push('0.90 0.90 0.90 RG 0.5 w');
-
-  items.forEach((item, idx) => {
-    stream.push(`40 ${currentY - 6} 515.28 26 re S`);
-
-    stream.push('BT');
-    stream.push('0.2 0.2 0.2 rg');
-    stream.push('/F1 9.5 Tf');
-    stream.push(`55 ${currentY} Td`);
-    stream.push(`(${idx + 1}) Tj`);
-    stream.push('35 0 Td');
-    stream.push(`(${escapePdfText(item)} - Appampattu Mutta Mittai) Tj`);
-    stream.push('270 0 Td');
-    stream.push(`(1) Tj`);
-    stream.push('70 0 Td');
-    stream.push(`(Rs. ${order.totalAmount}) Tj`);
-    stream.push('ET');
-
-    currentY -= 28;
-  });
-
-  // Grand Total Box
-  stream.push('0.96 0.71 0.11 rg'); // Gold fill
-  stream.push(`40 ${currentY - 14} 515.28 30 re f`);
-  stream.push('0.768 0.184 0.172 RG 1.5 w');
-  stream.push(`40 ${currentY - 14} 515.28 30 re S`);
-
+  // ==========================================
+  // 6. PAYMENT DETAILS & TERMS (LEFT SIDE)
+  // ==========================================
   stream.push('BT');
-  stream.push('0.23 0.11 0.06 rg');
-  stream.push('/F2 12 Tf');
-  stream.push(`330 ${currentY - 5} Td`);
-  stream.push(`(TOTAL PAID:) Tj`);
-  stream.push('90 0 Td');
-  stream.push('/F2 13 Tf');
-  stream.push('0.768 0.184 0.172 rg');
-  stream.push(`(Rs. ${order.totalAmount}) Tj`);
-  stream.push('ET');
-
-  // Notice & Instructions Box
-  currentY -= 70;
-  stream.push('0.95 0.98 0.95 rg'); // Soft green background
-  stream.push(`40 ${currentY} 515.28 45 re f`);
-  stream.push('0.2 0.6 0.2 RG 1 w');
-  stream.push(`40 ${currentY} 515.28 45 re S`);
-
-  stream.push('BT');
-  stream.push('0.1 0.45 0.1 rg');
-  stream.push('/F2 10 Tf');
-  stream.push(`55 ${currentY + 28} Td`);
-  stream.push(`(COLLECTION / DELIVERY INFORMATION:) Tj`);
-  stream.push('/F1 8.5 Tf');
-  stream.push('0 -14 Td');
-  stream.push(`(${escapePdfText('Store Pickup: Villupuram Railway Station (1st Platform) | Home delivery available in Villupuram.')}) Tj`);
-  stream.push('ET');
-
-  // Bottom Footer
-  stream.push('0.8 0.8 0.8 RG 0.5 w');
-  stream.push('40 90 515.28 0.5 re f');
-
-  stream.push('BT');
-  stream.push('0.4 0.4 0.4 rg');
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push('/F2 9.5 Tf');
+  stream.push('40 390 Td');
+  stream.push(`(PAYMENT DETAILS:) Tj`);
   stream.push('/F1 8 Tf');
-  stream.push('40 70 Td');
-  stream.push(`(APPAMPATTU MUTTA MITTAI  *  Traditional Village Sweets Made With Milk & Egg) Tj`);
+  stream.push('0.40 0.40 0.40 rg');
+  stream.push('0 -13 Td');
+  stream.push(`(Method: Razorpay Online Gateway  |  Status: PAID & VERIFIED) Tj`);
+  stream.push('0 -11 Td');
+  stream.push(`(Transaction ID: ${escapePdfText(txId)}) Tj`);
+
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push('/F2 9.5 Tf');
+  stream.push('0 -20 Td');
+  stream.push(`(TERMS AND CONDITIONS:) Tj`);
+  stream.push('/F1 7.5 Tf');
+  stream.push('0.45 0.45 0.45 rg');
   stream.push('0 -12 Td');
-  stream.push(`(WhatsApp / Helpline: +91 97893 25010  *  Website: appampattueggsweet.com) Tj`);
-  stream.push('0 -12 Td');
-  stream.push(`(This is a computer-generated tax invoice and order confirmation. No physical signature required.) Tj`);
+  stream.push(`(${escapePdfText('Store Pickup: Villupuram Railway Station (1st Platform) or Home Delivery.')}) Tj`);
+  stream.push('0 -10 Td');
+  stream.push(`(Freshly prepared authentic sweet made with pure milk, eggs, ghee and sugar.) Tj`);
+  stream.push('0 -10 Td');
+  stream.push(`(Best consumed within 7 days. Keep refrigerated for optimal taste & freshness.) Tj`);
+
+  // Bold italic "Thank you for your purchase here!"
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push('/F3 11 Tf');
+  stream.push('0 -22 Td');
+  stream.push(`(Thank you for your purchase here!) Tj`);
+  stream.push('ET');
+
+  // ==========================================
+  // 7. BOTTOM FOOTER BANNER & SIGNATURE
+  // ==========================================
+  // Dark Slate Polygon footer on bottom left
+  stream.push('0.12 0.15 0.17 rg');
+  stream.push('0 30 m 340 30 l 375 74 l 0 74 l h f');
+
+  // Contact info inside Dark Slate footer banner
+  stream.push('BT');
+  stream.push('1 1 1 rg');
+  stream.push('/F1 7.5 Tf');
+  stream.push('20 48 Td');
+  stream.push(`(${escapePdfText('(+91) 78719 49015')}) Tj`);
+  stream.push('105 0 Td');
+  stream.push(`(orders@appampattu.com) Tj`);
+  stream.push('115 0 Td');
+  stream.push(`(Villupuram, Tamil Nadu) Tj`);
+  stream.push('ET');
+
+  // Signature block on bottom right
+  stream.push('BT');
+  stream.push('0.30 0.30 0.30 rg');
+  stream.push('/F4 15 Tf'); // Times Italic signature style
+  stream.push('425 64 Td');
+  stream.push(`(Appampattu Sweets) Tj`);
+  stream.push('ET');
+
+  // Thin line under signature
+  stream.push('0.85 0.85 0.85 rg');
+  stream.push('410 54 130 0.6 re f');
+
+  // Signature title
+  stream.push('BT');
+  stream.push('0.40 0.40 0.40 rg');
+  stream.push('/F1 8.5 Tf');
+  stream.push('430 42 Td');
+  stream.push(`(Authorized Signatory) Tj`);
   stream.push('ET');
 
   const contentStream = stream.join('\n');
 
-  // PDF Object Hierarchy
+  // ==========================================
+  // 8. PDF DOCUMENT OBJECT HIERARCHY
+  // ==========================================
   // 1: Catalog
   pdf.addObject('<< /Type /Catalog /Pages 2 0 R >>');
   // 2: Pages
   pdf.addObject('<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  // 3: Page
+  // 3: Page (A4 Dimensions: 595.28 x 841.89 pt)
   pdf.addObject(
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>'
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R /F4 8 0 R >> >> >>'
   );
-  // 4: Contents
-  pdf.addObject(`<< /Length ${Buffer.byteLength(contentStream, 'latin1')} >>\nstream\n${contentStream}\nendstream`);
+  // 4: Contents Stream
+  pdf.addObject(
+    `<< /Length ${Buffer.byteLength(contentStream, 'latin1')} >>\nstream\n${contentStream}\nendstream`
+  );
   // 5: Font F1 (Helvetica Regular)
   pdf.addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
   // 6: Font F2 (Helvetica Bold)
   pdf.addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+  // 7: Font F3 (Helvetica Oblique / Italic)
+  pdf.addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>');
+  // 8: Font F4 (Times Italic for script signature)
+  pdf.addObject('<< /Type /Font /Subtype /Type1 /BaseFont /Times-Italic >>');
 
   return pdf.build();
 }

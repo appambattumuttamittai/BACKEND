@@ -57,7 +57,9 @@ export async function getOrders(
     where.OR = [
       { customerName: { contains: filters.search, mode: 'insensitive' } },
       { id: { contains: filters.search, mode: 'insensitive' } },
+      { phone: { contains: filters.search } },
       { city: { contains: filters.search, mode: 'insensitive' } },
+      { streetAddress: { contains: filters.search, mode: 'insensitive' } },
     ];
   }
 
