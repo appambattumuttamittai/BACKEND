@@ -3,8 +3,11 @@ import { notifyOrder } from '../../services/telegram.service';
 import { updateOrderInSheet } from '../../services/sheets.service';
 
 export async function getDashboardStats(prisma: PrismaClient) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use IST midnight (UTC+5:30) so stats reset at 12:00 AM IST, not 5:30 AM IST
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+  nowIST.setUTCHours(0, 0, 0, 0); // midnight in IST expressed as UTC
+  const today = new Date(nowIST.getTime() - IST_OFFSET_MS); // back to UTC for DB query
 
   const [
     ordersToday,

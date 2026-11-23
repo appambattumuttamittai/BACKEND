@@ -16,6 +16,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import configRoutes from './modules/config/config.routes';
 import feedbackRoutes from './modules/feedback/feedback.routes';
 import cartRoutes from './modules/cart/cart.routes';
+import { startArchiveCron } from './services/archive.service';
 
 async function start() {
   const config = getConfig();
@@ -79,6 +80,9 @@ async function start() {
   try {
     await app.listen({ port: config.PORT, host: '0.0.0.0' });
     console.log(`🚀 Server running on port ${config.PORT}`);
+
+    // Start 30-day archive cron (checks daily at midnight IST)
+    startArchiveCron(app.prisma);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

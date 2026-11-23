@@ -11,6 +11,7 @@ import {
 import { OrderStatus } from '@prisma/client';
 import { getConfig } from '../../config';
 import { z } from 'zod';
+import { runMonthlyArchive, shouldRunArchive } from '../../services/archive.service';
 
 // Middleware to protect all admin routes
 async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
@@ -91,7 +92,12 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   // Google Sheets URL (secure - admin only)
   fastify.get('/sheets-url', async (_request, reply) => {
     const config = getConfig();
-    return reply.send({ url: config.GOOGLE_SHEETS_URL || null });
+    // Build URL from GOOGLE_SHEETS_URL env, or construct from SPREADSHEET_ID if available
+    const url = config.GOOGLE_SHEETS_URL ||
+      (config.GOOGLE_SHEETS_SPREADSHEET_ID
+        ? `https://docs.google.com/spreadsheets/d/${config.GOOGLE_SHEETS_SPREADSHEET_ID}/edit`
+        : null);
+    return reply.send({ url });
   });
 
   // ---- Product management (admin) ----
@@ -126,6 +132,20 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // ---- Feedback management (admin) ----
+
+  // POST create a new feedback entry (admin-added review)
+  fastify.post('/feedback', async (request, reply) => {
+    const schema = z.object({
+      name: z.string().min(1),
+      rating: z.number().int().min(1).max(5),
+      message: z.string().min(1),
+      isApproved: z.boolean().default(true),
+    });
+    const result = schema.safeParse(request.body);
+    if (!result.success) return reply.status(400).send({ error: 'Invalid feedback data' });
+    const feedback = await fastify.prisma.feedback.create({ data: result.data });
+    return reply.send(feedback);
+  });
 
   // GET all feedbacks (approved + pending)
   fastify.get('/feedback', async (request, reply) => {
@@ -195,6 +215,52 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     });
     return reply.send({ success: true, config });
   });
+  // ---- Archive management (admin) ----
+
+  // GET list of all past archives
+  fastify.get('/archives', async (_request, reply) => {
+    const archives = await fastify.prisma.archive.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        createdAt: true,
+        orderCount: true,
+        paidCount: true,
+        fromDate: true,
+        toDate: true,
+        telegramMsgId: true,
+        // Exclude csvData from list (download separately)
+      },
+    });
+    return reply.send(archives);
+  });
+
+  // GET download CSV of a specific archive
+  fastify.get('/archives/:id/csv', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const archive = await fastify.prisma.archive.findUnique({ where: { id }, select: { csvData: true, createdAt: true } });
+    if (!archive) return reply.status(404).send({ error: 'Archive not found' });
+    const filename = `muttamittai-archive-${new Date(archive.createdAt).toISOString().split('T')[0]}.csv`;
+    reply.header('Content-Type', 'text/csv; charset=utf-8');
+    reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+    return reply.send(archive.csvData);
+  });
+
+  // POST manually trigger archive now
+  fastify.post('/archives/run', async (_request, reply) => {
+    const result = await runMonthlyArchive(fastify.prisma);
+    return reply.send(result);
+  });
+
+  // GET check archive status
+  fastify.get('/archives/status', async (_request, reply) => {
+    const cfg = await fastify.prisma.appConfig.findUnique({ where: { key: 'LAST_ARCHIVE_DATE' } });
+    const lastDate = cfg ? new Date(cfg.value) : null;
+    const daysSince = lastDate ? (Date.now() - lastDate.getTime()) / 86_400_000 : null;
+    const isDue = await shouldRunArchive(fastify.prisma);
+    return reply.send({ lastArchiveDate: lastDate, daysSince: daysSince ? Math.floor(daysSince) : null, isDue });
+  });
+
 };
 
 export default adminRoutes;
