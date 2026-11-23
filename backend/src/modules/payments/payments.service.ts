@@ -68,40 +68,30 @@ export async function createRazorpayOrder(
   };
 }
 
-export async function verifyRazorpayPayment(
+export async function confirmOrderPaid(
   prisma: PrismaClient,
-  data: {
-    orderId: string;
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-  }
+  orderId: string,
+  razorpayPaymentId: string
 ) {
-  const config = getConfig();
-  if (!config.RAZORPAY_KEY_SECRET) {
-    throw new Error('RAZORPAY_NOT_CONFIGURED');
-  }
-
-  // Verify HMAC SHA256 signature
-  const expectedSignature = crypto
-    .createHmac('sha256', config.RAZORPAY_KEY_SECRET)
-    .update(`${data.razorpayOrderId}|${data.razorpayPaymentId}`)
-    .digest('hex');
-
-  if (expectedSignature !== data.razorpaySignature) {
-    throw new Error('INVALID_PAYMENT_SIGNATURE');
-  }
-
   const order = await prisma.order.findUnique({
-    where: { id: data.orderId },
+    where: { id: orderId },
     include: { product: true },
   });
 
   if (!order) throw new Error('ORDER_NOT_FOUND');
 
-  const notesAppend = `Razorpay: ${data.razorpayPaymentId}`;
+  // Idempotency: If order is already PAID, return without duplicating notifications
+  if (order.status === OrderStatus.PAID) {
+    return {
+      id: order.id,
+      status: order.status,
+      paymentId: razorpayPaymentId,
+    };
+  }
+
+  const notesAppend = `Razorpay: ${razorpayPaymentId}`;
   const updated = await prisma.order.update({
-    where: { id: data.orderId },
+    where: { id: orderId },
     data: {
       status: OrderStatus.PAID,
       paidAt: new Date(),
@@ -131,7 +121,7 @@ export async function verifyRazorpayPayment(
     city: updated.city || '',
     streetAddress: updated.streetAddress || '',
     deliveryMethod: deliveryTextPaid,
-    transactionId: data.razorpayPaymentId,
+    transactionId: razorpayPaymentId,
   }).catch(console.error);
 
   // Generate Invoice PDF and send to Admin via Telegram
@@ -148,7 +138,7 @@ export async function verifyRazorpayPayment(
 
     const pdfBuffer = generateOrderInvoicePDF({
       ...updated,
-      transactionId: data.razorpayPaymentId,
+      transactionId: razorpayPaymentId,
     });
     sendTelegramDocument(
       pdfBuffer,
@@ -159,7 +149,7 @@ export async function verifyRazorpayPayment(
     console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);
   }
 
-  updateOrderInSheet(data.orderId, 'PAID', {
+  updateOrderInSheet(orderId, 'PAID', {
     customerName: updated.customerName,
     phone: updated.phone,
     weight: updated.adminNotes || updated.product.weight,
@@ -171,8 +161,91 @@ export async function verifyRazorpayPayment(
   return {
     id: updated.id,
     status: updated.status,
-    paymentId: data.razorpayPaymentId,
+    paymentId: razorpayPaymentId,
   };
+}
+
+export async function verifyRazorpayPayment(
+  prisma: PrismaClient,
+  data: {
+    orderId: string;
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }
+) {
+  const config = getConfig();
+  if (!config.RAZORPAY_KEY_SECRET) {
+    throw new Error('RAZORPAY_NOT_CONFIGURED');
+  }
+
+  // Verify HMAC SHA256 signature
+  const expectedSignature = crypto
+    .createHmac('sha256', config.RAZORPAY_KEY_SECRET)
+    .update(`${data.razorpayOrderId}|${data.razorpayPaymentId}`)
+    .digest('hex');
+
+  if (expectedSignature !== data.razorpaySignature) {
+    throw new Error('INVALID_PAYMENT_SIGNATURE');
+  }
+
+  return confirmOrderPaid(prisma, data.orderId, data.razorpayPaymentId);
+}
+
+export async function handleRazorpayWebhook(
+  prisma: PrismaClient,
+  rawBody: string,
+  signature: string | undefined,
+  eventData: any
+) {
+  const config = getConfig();
+  const secret = config.RAZORPAY_WEBHOOK_SECRET || config.RAZORPAY_KEY_SECRET;
+
+  if (secret && signature) {
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(rawBody)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      console.error('[Razorpay Webhook] Invalid signature verification');
+      throw new Error('INVALID_WEBHOOK_SIGNATURE');
+    }
+  }
+
+  const event = eventData?.event;
+  console.log(`[Razorpay Webhook] Event received: ${event}`);
+
+  if (event === 'order.paid' || event === 'payment.captured') {
+    const payload = eventData?.payload;
+    const orderEntity = payload?.order?.entity;
+    const paymentEntity = payload?.payment?.entity;
+
+    const orderNotes = orderEntity?.notes || {};
+    const paymentNotes = paymentEntity?.notes || {};
+
+    let orderId = orderNotes.orderId || paymentNotes.orderId;
+
+    if (!orderId && orderEntity?.receipt) {
+      const receipt = String(orderEntity.receipt);
+      const match = await prisma.order.findFirst({
+        where: { id: { endsWith: receipt.replace('rcpt_', '') } },
+      });
+      if (match) orderId = match.id;
+    }
+
+    const paymentId = paymentEntity?.id || `pay_wh_${Date.now()}`;
+
+    if (orderId) {
+      console.log(`[Razorpay Webhook] Auto-confirming order #${orderId} (Payment: ${paymentId})`);
+      await confirmOrderPaid(prisma, orderId, paymentId);
+      return { success: true, orderId, paymentId };
+    } else {
+      console.warn('[Razorpay Webhook] Could not find orderId in webhook event notes:', orderNotes, paymentNotes);
+    }
+  }
+
+  return { success: true, message: `Event ${event} processed` };
 }
 
 export async function markPaymentReview(

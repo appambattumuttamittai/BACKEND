@@ -5,9 +5,22 @@ import {
   getRazorpayConfig,
   createRazorpayOrder,
   verifyRazorpayPayment,
+  handleRazorpayWebhook,
 } from './payments.service';
 
 const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
+  // Capture raw string body for cryptographic webhook signature verification
+  fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, (req, body, done) => {
+    try {
+      const rawString = body.toString('utf8');
+      (req as any).rawBody = rawString;
+      const json = JSON.parse(rawString);
+      done(null, json);
+    } catch (err: any) {
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  });
   const orderIdSchema = z.object({ orderId: z.string().min(1) });
 
   const verifySchema = z.object({
@@ -86,6 +99,29 @@ const paymentsRoutes: FastifyPluginAsync = async (fastify) => {
       }
     }
   );
+
+  // Razorpay Webhook (Direct server-to-server confirmation)
+  fastify.post('/razorpay/webhook', async (request, reply) => {
+    const rawBody = (request as any).rawBody || JSON.stringify(request.body || {});
+    const signature = request.headers['x-razorpay-signature'] as string | undefined;
+
+    try {
+      const result = await handleRazorpayWebhook(
+        fastify.prisma,
+        rawBody,
+        signature,
+        request.body
+      );
+      return reply.send(result);
+    } catch (err: unknown) {
+      const msg = (err as Error).message;
+      if (msg === 'INVALID_WEBHOOK_SIGNATURE') {
+        return reply.status(400).send({ error: 'Invalid webhook signature' });
+      }
+      fastify.log.error(err);
+      return reply.status(500).send({ error: 'Webhook processing failed' });
+    }
+  });
 
   // Fallback: Manual UPI / QR code payment review
   fastify.post(
