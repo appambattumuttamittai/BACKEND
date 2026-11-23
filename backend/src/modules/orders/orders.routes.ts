@@ -48,10 +48,23 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string };
     await expireStaleOrders(fastify.prisma);
 
-    const order = await fastify.prisma.order.findUnique({
-      where: { id },
+    const cleanId = id.replace(/^#/, '').trim();
+    let order = await fastify.prisma.order.findUnique({
+      where: { id: cleanId },
       include: { product: true },
     });
+
+    if (!order && cleanId.length <= 12) {
+      order = await fastify.prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: { endsWith: cleanId.toLowerCase() } },
+            { id: { endsWith: cleanId.toUpperCase() } },
+          ],
+        },
+        include: { product: true },
+      });
+    }
 
     if (!order) return reply.status(404).send({ error: 'Order not found' });
 
@@ -86,11 +99,24 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/:id/invoice.pdf', async (request, reply) => {
     const { id } = request.params as { id: string };
+    const cleanId = id.replace(/^#/, '').trim();
 
-    const order = await fastify.prisma.order.findUnique({
-      where: { id },
+    let order = await fastify.prisma.order.findUnique({
+      where: { id: cleanId },
       include: { product: true },
     });
+
+    if (!order && cleanId.length <= 12) {
+      order = await fastify.prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: { endsWith: cleanId.toLowerCase() } },
+            { id: { endsWith: cleanId.toUpperCase() } },
+          ],
+        },
+        include: { product: true },
+      });
+    }
 
     if (!order) return reply.status(404).send({ error: 'Order not found' });
 
@@ -108,10 +134,25 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/:id/receipt.pdf', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const order = await fastify.prisma.order.findUnique({
-      where: { id },
+    const cleanId = id.replace(/^#/, '').trim();
+
+    let order = await fastify.prisma.order.findUnique({
+      where: { id: cleanId },
       include: { product: true },
     });
+
+    if (!order && cleanId.length <= 12) {
+      order = await fastify.prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: { endsWith: cleanId.toLowerCase() } },
+            { id: { endsWith: cleanId.toUpperCase() } },
+          ],
+        },
+        include: { product: true },
+      });
+    }
+
     if (!order) return reply.status(404).send({ error: 'Order not found' });
     const pdfBuffer = generateOrderInvoicePDF(order);
     return reply
