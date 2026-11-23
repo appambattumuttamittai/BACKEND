@@ -13,7 +13,6 @@ import ordersRoutes from './modules/orders/orders.routes';
 import paymentsRoutes from './modules/payments/payments.routes';
 import productsRoutes from './modules/products/products.routes';
 import adminRoutes from './modules/admin/admin.routes';
-import configRoutes from './modules/config/config.routes';
 import feedbackRoutes from './modules/feedback/feedback.routes';
 import cartRoutes from './modules/cart/cart.routes';
 import { startArchiveCron } from './services/archive.service';
@@ -65,7 +64,6 @@ async function start() {
   await app.register(paymentsRoutes, { prefix: '/api/payments' });
   await app.register(productsRoutes, { prefix: '/api/products' });
   await app.register(adminRoutes, { prefix: '/api/admin' });
-  await app.register(configRoutes, { prefix: '/api/config' });
   await app.register(feedbackRoutes, { prefix: '/api/feedback' });
   await app.register(cartRoutes, { prefix: '/api/cart-notify' });
 
@@ -79,6 +77,25 @@ async function start() {
 
   try {
     await app.listen({ port: config.PORT, host: '0.0.0.0' });
+
+    // ── OTP Provider startup check ───────────────────────────────
+    const provider = (config.OTP_PROVIDER || 'firebase').toLowerCase();
+    if (provider === 'msg91') {
+      if (!config.MSG91_AUTH_KEY || !config.MSG91_TEMPLATE_ID) {
+        console.error('⚠️  OTP_PROVIDER=msg91 but MSG91_AUTH_KEY or MSG91_TEMPLATE_ID is missing! OTP will fail.');
+      } else {
+        console.log('✅ OTP Provider: MSG91 (live SMS)');
+      }
+    } else {
+      if (config.FIREBASE_TEST_MODE) {
+        console.log(`✅ OTP Provider: Firebase (TEST MODE) — OTP code is: ${config.FIREBASE_TEST_OTP}`);
+      } else if (!config.FIREBASE_API_KEY) {
+        console.error('⚠️  OTP_PROVIDER=firebase but FIREBASE_API_KEY is missing! OTP will fail.');
+      } else {
+        console.log('✅ OTP Provider: Firebase (live SMS)');
+      }
+    }
+
     console.log(`🚀 Server running on port ${config.PORT}`);
 
     // Start 30-day archive cron (checks daily at midnight IST)
