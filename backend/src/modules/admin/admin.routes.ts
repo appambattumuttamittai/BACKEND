@@ -47,10 +47,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
       include: { product: true },
     });
     if (!order) return reply.status(404).send({ error: 'Order not found' });
-    return reply.send({
-      ...order,
-      phone: order.phone.slice(0, 2) + '****' + order.phone.slice(-4),
-    });
+    return reply.send(order);
   });
 
   // Update order status

@@ -67,7 +67,7 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       id: order.id,
       customerName: order.customerName,
-      phone: order.phone.slice(0, 2) + '****' + order.phone.slice(-4),
+      phone: order.phone,
       product: {
         id: order.product.id,
         weight: cleanWeight,

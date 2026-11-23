@@ -88,7 +88,6 @@ export async function getOrders(
 
   const safeOrders = orders.map((o) => ({
     ...o,
-    phone: o.phone.slice(0, 2) + '****' + o.phone.slice(-4),
   }));
 
   return {
@@ -129,7 +128,7 @@ export async function updateOrderStatus(
 
   updateOrderInSheet(orderId, status).catch(console.error);
 
-  return { ...order, phone: order.phone.slice(0, 2) + '****' + order.phone.slice(-4) };
+  return order;
 }
 
 export async function exportOrdersCsv(
@@ -151,12 +150,12 @@ export async function exportOrdersCsv(
     orderBy: { createdAt: 'desc' },
   });
 
-  const header = 'Order ID,Customer Name,Phone (Masked),Weight,Amount,Status,City,Street Address,Date\n';
+  const header = 'Order ID,Customer Name,Phone,Weight,Amount,Status,City,Street Address,Date\n';
   const rows = orders.map((o) =>
     [
       o.id,
       `"${o.customerName}"`,
-      o.phone.slice(0, 2) + '****' + o.phone.slice(-4),
+      o.phone,
       o.product.weight,
       `₹${o.totalAmount}`,
       o.status,
