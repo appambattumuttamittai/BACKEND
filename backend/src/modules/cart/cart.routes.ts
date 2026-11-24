@@ -18,7 +18,10 @@ const cartRoutes: FastifyPluginAsync = async (fastify) => {
    * Stores the last 100 events in AppConfig table (key = 'cart_notifications').
    * Admin can view this in the admin panel.
    */
-  fastify.post('/', async (request, reply) => {
+  fastify.post(
+    '/',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request, reply) => {
     const result = notifySchema.safeParse(request.body);
     if (!result.success) {
       return reply.status(400).send({ error: 'Invalid cart data' });

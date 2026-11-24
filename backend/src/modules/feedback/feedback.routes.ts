@@ -18,8 +18,11 @@ const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send(feedbacks);
   });
 
-  // POST /api/feedback — public, submit a new feedback (pending approval)
-  fastify.post('/', async (request, reply) => {
+  // POST /api/feedback — public, submit a new feedback (pending approval, rate limited)
+  fastify.post(
+    '/',
+    { config: { rateLimit: { max: 3, timeWindow: '5 minutes' } } },
+    async (request, reply) => {
     const result = submitSchema.safeParse(request.body);
     if (!result.success) {
       return reply.status(400).send({ error: 'Invalid feedback data', details: result.error.flatten() });

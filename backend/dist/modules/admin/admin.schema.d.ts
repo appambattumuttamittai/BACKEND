@@ -3,10 +3,10 @@ export declare const updateOrderStatusSchema: z.ZodObject<{
     status: z.ZodEnum<["OTP_PENDING", "OTP_VERIFIED", "PAYMENT_PENDING", "PAYMENT_REVIEW", "PAID", "PAYMENT_FAILED", "OUT_OF_STOCK", "READY_FOR_PICKUP", "PICKED_UP", "CANCELLED"]>;
     adminNotes: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "PAYMENT_PENDING" | "PAYMENT_REVIEW" | "PAID" | "PAYMENT_FAILED" | "READY_FOR_PICKUP" | "PICKED_UP" | "CANCELLED" | "OUT_OF_STOCK" | "OTP_PENDING" | "OTP_VERIFIED";
+    status: "PAYMENT_PENDING" | "PAYMENT_REVIEW" | "PAID" | "PAYMENT_FAILED" | "READY_FOR_PICKUP" | "PICKED_UP" | "CANCELLED" | "OTP_PENDING" | "OTP_VERIFIED" | "OUT_OF_STOCK";
     adminNotes?: string | undefined;
 }, {
-    status: "PAYMENT_PENDING" | "PAYMENT_REVIEW" | "PAID" | "PAYMENT_FAILED" | "READY_FOR_PICKUP" | "PICKED_UP" | "CANCELLED" | "OUT_OF_STOCK" | "OTP_PENDING" | "OTP_VERIFIED";
+    status: "PAYMENT_PENDING" | "PAYMENT_REVIEW" | "PAID" | "PAYMENT_FAILED" | "READY_FOR_PICKUP" | "PICKED_UP" | "CANCELLED" | "OTP_PENDING" | "OTP_VERIFIED" | "OUT_OF_STOCK";
     adminNotes?: string | undefined;
 }>;
 export declare const orderFiltersSchema: z.ZodObject<{

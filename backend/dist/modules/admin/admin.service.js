@@ -9,8 +9,11 @@ const client_1 = require("@prisma/client");
 const telegram_service_1 = require("../../services/telegram.service");
 const sheets_service_1 = require("../../services/sheets.service");
 async function getDashboardStats(prisma) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Use IST midnight (UTC+5:30) so stats reset at 12:00 AM IST, not 5:30 AM IST
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    const nowIST = new Date(Date.now() + IST_OFFSET_MS);
+    nowIST.setUTCHours(0, 0, 0, 0); // midnight in IST expressed as UTC
+    const today = new Date(nowIST.getTime() - IST_OFFSET_MS); // back to UTC for DB query
     const [ordersToday, revenueTodayAgg, pendingReview, paidOrders, failedOrders, outOfStock, totalOrders,] = await Promise.all([
         prisma.order.count({ where: { createdAt: { gte: today } } }),
         prisma.order.aggregate({
@@ -41,7 +44,9 @@ async function getOrders(prisma, filters) {
         where.OR = [
             { customerName: { contains: filters.search, mode: 'insensitive' } },
             { id: { contains: filters.search, mode: 'insensitive' } },
+            { phone: { contains: filters.search } },
             { city: { contains: filters.search, mode: 'insensitive' } },
+            { streetAddress: { contains: filters.search, mode: 'insensitive' } },
         ];
     }
     if (filters.status)
@@ -66,7 +71,6 @@ async function getOrders(prisma, filters) {
     ]);
     const safeOrders = orders.map((o) => ({
         ...o,
-        phone: o.phone.slice(0, 2) + '****' + o.phone.slice(-4),
     }));
     return {
         orders: safeOrders,
@@ -97,7 +101,7 @@ async function updateOrderStatus(prisma, orderId, status, adminNotes) {
         city: order.city || '',
     }).catch(console.error);
     (0, sheets_service_1.updateOrderInSheet)(orderId, status).catch(console.error);
-    return { ...order, phone: order.phone.slice(0, 2) + '****' + order.phone.slice(-4) };
+    return order;
 }
 async function exportOrdersCsv(prisma, filters) {
     const where = {};
@@ -116,11 +120,11 @@ async function exportOrdersCsv(prisma, filters) {
         include: { product: true },
         orderBy: { createdAt: 'desc' },
     });
-    const header = 'Order ID,Customer Name,Phone (Masked),Weight,Amount,Status,City,Street Address,Date\n';
+    const header = 'Order ID,Customer Name,Phone,Weight,Amount,Status,City,Street Address,Date\n';
     const rows = orders.map((o) => [
         o.id,
         `"${o.customerName}"`,
-        o.phone.slice(0, 2) + '****' + o.phone.slice(-4),
+        o.phone,
         o.product.weight,
         `₹${o.totalAmount}`,
         o.status,

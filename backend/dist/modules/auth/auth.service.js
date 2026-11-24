@@ -35,14 +35,14 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyAdminCredentials = verifyAdminCredentials;
 exports.isAdminAuthenticated = isAdminAuthenticated;
-const argon2 = __importStar(require("argon2"));
+const bcrypt = __importStar(require("bcryptjs"));
 const config_1 = require("../../config");
 async function verifyAdminCredentials(username, password) {
     const config = (0, config_1.getConfig)();
     if (username !== config.ADMIN_USERNAME)
         return false;
     try {
-        return await argon2.verify(config.ADMIN_PASSWORD_HASH, password);
+        return await bcrypt.compare(password, config.ADMIN_PASSWORD_HASH);
     }
     catch {
         return false;

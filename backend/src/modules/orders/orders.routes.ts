@@ -44,7 +44,10 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
-  fastify.get('/:id', async (request, reply) => {
+  fastify.get(
+    '/:id',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request, reply) => {
     const { id } = request.params as { id: string };
     await expireStaleOrders(fastify.prisma);
 
@@ -97,7 +100,10 @@ const ordersRoutes: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  fastify.get('/:id/invoice.pdf', async (request, reply) => {
+  fastify.get(
+    '/:id/invoice.pdf',
+    { config: { rateLimit: { max: 15, timeWindow: '1 minute' } } },
+    async (request, reply) => {
     const { id } = request.params as { id: string };
     const cleanId = id.replace(/^#/, '').trim();
 

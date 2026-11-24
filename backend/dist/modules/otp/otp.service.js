@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.initiateOtp = initiateOtp;
 exports.validateOtp = validateOtp;
-const twilio_service_1 = require("../../services/twilio.service");
+const otp_1 = require("../../services/otp");
 async function initiateOtp(prisma, phone) {
     // Check recent sends - prevent spam
     const recent = await prisma.otpSession.count({
@@ -14,7 +14,7 @@ async function initiateOtp(prisma, phone) {
     if (recent >= 3) {
         throw new Error('TOO_MANY_REQUESTS');
     }
-    await (0, twilio_service_1.sendOtp)(phone);
+    await (0, otp_1.sendOtp)(phone);
     const session = await prisma.otpSession.create({
         data: {
             phone,
@@ -42,7 +42,7 @@ async function validateOtp(prisma, phone, code, sessionId) {
             data: { attempts: { increment: 1 } },
         });
     }
-    const verified = await (0, twilio_service_1.verifyOtp)(phone, code);
+    const verified = await (0, otp_1.verifyOtp)(phone, code, sessionId);
     if (!verified)
         return { valid: false, sessionId: sessionId || null };
     if (sessionId) {

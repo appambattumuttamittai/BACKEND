@@ -8,6 +8,11 @@ exports.createOrderSchema = zod_1.z.object({
         .string()
         .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),
     productId: zod_1.z.string().min(1, 'Product is required'),
+    quantity: zod_1.z.number().int().positive().optional().default(1),
+    items: zod_1.z.array(zod_1.z.object({
+        productId: zod_1.z.string(),
+        quantity: zod_1.z.number().int().positive(),
+    })).optional(),
     otpSessionId: zod_1.z.string().min(1, 'OTP verification required'),
     streetAddress: zod_1.z.string().min(1, 'Street address is required').max(200),
     city: zod_1.z.string().min(1, 'City is required').max(100),

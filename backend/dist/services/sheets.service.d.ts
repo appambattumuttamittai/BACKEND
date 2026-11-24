@@ -8,4 +8,11 @@ export declare function appendOrderToSheet(order: {
     city: string;
     createdAt: Date;
 }): Promise<void>;
-export declare function updateOrderInSheet(orderId: string, status: string): Promise<void>;
+export declare function updateOrderInSheet(orderId: string, status: string, orderData?: {
+    customerName: string;
+    phone: string;
+    weight: string;
+    amount: number;
+    city: string;
+    createdAt: Date;
+}): Promise<void>;

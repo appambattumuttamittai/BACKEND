@@ -18,61 +18,132 @@ async function createOrder(prisma, data) {
     if (!session) {
         throw new Error('OTP_NOT_VERIFIED');
     }
-    // Get product price from DB (never trust frontend price)
-    const product = await prisma.product.findUnique({
-        where: { id: data.productId },
+    // Idempotency: prevent duplicate/fake orders if user double-clicks or taps multiple times
+    const existingOrder = await prisma.order.findFirst({
+        where: {
+            otpSessionId: data.otpSessionId,
+            status: client_1.OrderStatus.PAYMENT_PENDING,
+            paymentExpiry: { gt: new Date() },
+        },
+        include: { product: true },
     });
-    if (!product)
-        throw new Error('PRODUCT_NOT_FOUND');
-    if (!product.inStock)
-        throw new Error('OUT_OF_STOCK');
-    // 90 second payment window
-    const paymentExpiry = new Date(Date.now() + 90 * 1000);
+    if (existingOrder) {
+        return {
+            ...existingOrder,
+            itemsSummary: existingOrder.adminNotes || existingOrder.product.weight,
+        };
+    }
+    let primaryProductId;
+    let totalQuantity = 0;
+    let totalAmount = 0;
+    let itemsSummary = '';
+    if (data.items && data.items.length > 0) {
+        const resolvedItems = [];
+        for (const item of data.items) {
+            const p = await prisma.product.findFirst({
+                where: {
+                    OR: [{ id: item.productId }, { weight: item.productId }],
+                },
+            });
+            if (!p)
+                throw new Error('PRODUCT_NOT_FOUND');
+            if (!p.inStock)
+                throw new Error('OUT_OF_STOCK');
+            const qty = item.quantity > 0 ? item.quantity : 1;
+            resolvedItems.push({ product: p, quantity: qty });
+            totalAmount += p.price * qty;
+            totalQuantity += qty;
+        }
+        primaryProductId = resolvedItems[0].product.id;
+        itemsSummary = resolvedItems.map((r) => `${r.product.weight} × ${r.quantity}`).join(', ');
+    }
+    else {
+        // Get product price from DB (never trust frontend price)
+        const product = await prisma.product.findFirst({
+            where: {
+                OR: [
+                    { id: data.productId },
+                    { weight: data.productId },
+                ],
+            },
+        });
+        if (!product)
+            throw new Error('PRODUCT_NOT_FOUND');
+        if (!product.inStock)
+            throw new Error('OUT_OF_STOCK');
+        const qty = data.quantity && data.quantity > 0 ? data.quantity : 1;
+        primaryProductId = product.id;
+        totalQuantity = qty;
+        totalAmount = product.price * qty;
+        itemsSummary = `${product.weight} × ${qty}`;
+    }
+    // 30 minute payment window
+    const paymentExpiry = new Date(Date.now() + 30 * 60 * 1000);
     const order = await prisma.order.create({
         data: {
             customerName: data.customerName,
             phone: data.phone,
-            productId: data.productId,
-            totalAmount: product.price,
+            productId: primaryProductId,
+            quantity: totalQuantity,
+            totalAmount,
             streetAddress: data.streetAddress,
             city: data.city,
-            pincode: data.pincode,
+            pincode: data.pincode || '605602',
             otpSessionId: data.otpSessionId,
             status: client_1.OrderStatus.PAYMENT_PENDING,
             paymentExpiry,
+            adminNotes: itemsSummary,
         },
         include: { product: true },
     });
     // Async notifications - don't block response
-    (0, telegram_service_1.notifyOrder)({
+    const isPickup = data.streetAddress?.toLowerCase().includes('pick up') ||
+        data.streetAddress?.toLowerCase().includes('store');
+    const deliveryText = isPickup
+        ? '🏬 Store Pickup (Villupuram Railway Station)'
+        : '🚚 Home Delivery (Within Villupuram City)';
+    (0, telegram_service_1.notifyOrderPending)({
         id: order.id,
         customerName: order.customerName,
         phone: order.phone,
-        weight: product.weight,
+        weight: itemsSummary,
         price: order.totalAmount,
-        status: 'PAYMENT_PENDING',
+        streetAddress: order.streetAddress || '',
         city: order.city || '',
+        deliveryMethod: deliveryText,
     }).catch(console.error);
     (0, sheets_service_1.appendOrderToSheet)({
         id: order.id,
         customerName: order.customerName,
         phone: order.phone,
-        weight: product.weight,
+        weight: itemsSummary,
         amount: order.totalAmount,
         status: 'PAYMENT_PENDING',
         city: order.city || '',
         createdAt: order.createdAt,
     }).catch(console.error);
-    return order;
+    return { ...order, itemsSummary };
 }
+let lastExpirationCheck = 0;
 async function expireStaleOrders(prisma) {
-    const result = await prisma.order.updateMany({
-        where: {
-            status: client_1.OrderStatus.PAYMENT_PENDING,
-            paymentExpiry: { lt: new Date() },
-        },
-        data: { status: client_1.OrderStatus.PAYMENT_FAILED },
-    });
-    return result.count;
+    const now = Date.now();
+    if (now - lastExpirationCheck < 30000) {
+        return 0; // Throttled to avoid DB write-lock contention under heavy concurrency
+    }
+    lastExpirationCheck = now;
+    try {
+        const result = await prisma.order.updateMany({
+            where: {
+                status: client_1.OrderStatus.PAYMENT_PENDING,
+                paymentExpiry: { lt: new Date() },
+            },
+            data: { status: client_1.OrderStatus.PAYMENT_FAILED },
+        });
+        return result.count;
+    }
+    catch (err) {
+        console.error('Error expiring stale orders:', err);
+        return 0;
+    }
 }
 //# sourceMappingURL=orders.service.js.map

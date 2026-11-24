@@ -45,7 +45,7 @@ async function appendOrderToSheet(order) {
         console.error('Google Sheets sync failed (order is safe in DB):', err.message);
     }
 }
-async function updateOrderInSheet(orderId, status) {
+async function updateOrderInSheet(orderId, status, orderData) {
     try {
         const { sheets, config } = await getSheetsClient();
         // Find the row with matching order ID
@@ -62,6 +62,18 @@ async function updateOrderInSheet(orderId, status) {
                 range: `${config.GOOGLE_SHEETS_SHEET_NAME}!F${rowNum}`,
                 valueInputOption: 'RAW',
                 requestBody: { values: [[status]] },
+            });
+        }
+        else if (orderData) {
+            await appendOrderToSheet({
+                id: orderId,
+                customerName: orderData.customerName,
+                phone: orderData.phone,
+                weight: orderData.weight,
+                amount: orderData.amount,
+                status,
+                city: orderData.city,
+                createdAt: orderData.createdAt,
             });
         }
     }

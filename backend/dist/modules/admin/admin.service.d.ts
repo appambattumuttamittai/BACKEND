@@ -17,32 +17,32 @@ export declare function getOrders(prisma: PrismaClient, filters: {
     limit: number;
 }): Promise<{
     orders: {
-        phone: string;
         product: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             weight: string;
             weightGrams: number;
             price: number;
             inStock: boolean;
-            updatedAt: Date;
         };
         status: import(".prisma/client").$Enums.OrderStatus;
+        phone: string;
         id: string;
         createdAt: Date;
         customerName: string;
         productId: string;
+        quantity: number;
         otpSessionId: string | null;
         streetAddress: string | null;
         city: string | null;
         pincode: string | null;
-        updatedAt: Date;
-        quantity: number;
         totalAmount: number;
         paymentExpiry: Date | null;
         paidAt: Date | null;
         pickedUpAt: Date | null;
         adminNotes: string | null;
+        updatedAt: Date;
     }[];
     total: number;
     page: number;
@@ -50,32 +50,33 @@ export declare function getOrders(prisma: PrismaClient, filters: {
     pages: number;
 }>;
 export declare function updateOrderStatus(prisma: PrismaClient, orderId: string, status: OrderStatus, adminNotes?: string): Promise<{
-    phone: string;
     product: {
         id: string;
         createdAt: Date;
+        updatedAt: Date;
         weight: string;
         weightGrams: number;
         price: number;
         inStock: boolean;
-        updatedAt: Date;
     };
+} & {
     status: import(".prisma/client").$Enums.OrderStatus;
+    phone: string;
     id: string;
     createdAt: Date;
     customerName: string;
     productId: string;
+    quantity: number;
     otpSessionId: string | null;
     streetAddress: string | null;
     city: string | null;
     pincode: string | null;
-    updatedAt: Date;
-    quantity: number;
     totalAmount: number;
     paymentExpiry: Date | null;
     paidAt: Date | null;
     pickedUpAt: Date | null;
     adminNotes: string | null;
+    updatedAt: Date;
 }>;
 export declare function exportOrdersCsv(prisma: PrismaClient, filters: {
     status?: string;

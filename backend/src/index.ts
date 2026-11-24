@@ -70,8 +70,10 @@ async function start() {
   // Global error handler
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);
-    reply.status(error.statusCode || 500).send({
-      error: error.message || 'Internal Server Error',
+    const statusCode = error.statusCode || 500;
+    const isProd = config.NODE_ENV === 'production';
+    reply.status(statusCode).send({
+      error: statusCode === 500 && isProd ? 'Internal Server Error' : (error.message || 'Internal Server Error'),
     });
   });
 
