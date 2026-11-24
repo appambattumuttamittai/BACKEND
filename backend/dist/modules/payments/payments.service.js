@@ -159,7 +159,11 @@ async function verifyRazorpayPayment(prisma, data) {
 async function handleRazorpayWebhook(prisma, rawBody, signature, eventData) {
     const config = (0, config_1.getConfig)();
     const secret = config.RAZORPAY_WEBHOOK_SECRET || config.RAZORPAY_KEY_SECRET;
-    if (secret && signature) {
+    if (secret) {
+        if (!signature) {
+            console.error('[Razorpay Webhook] Missing signature header');
+            throw new Error('INVALID_WEBHOOK_SIGNATURE');
+        }
         const expectedSignature = crypto_1.default
             .createHmac('sha256', secret)
             .update(rawBody)

@@ -18,6 +18,16 @@ async function createOrder(prisma, data) {
     if (!session) {
         throw new Error('OTP_NOT_VERIFIED');
     }
+    // Prevent OTP session replay if order was already confirmed/paid
+    const alreadyPaidOrder = await prisma.order.findFirst({
+        where: {
+            otpSessionId: data.otpSessionId,
+            status: client_1.OrderStatus.PAID,
+        },
+    });
+    if (alreadyPaidOrder) {
+        throw new Error('OTP_NOT_VERIFIED');
+    }
     // Idempotency: prevent duplicate/fake orders if user double-clicks or taps multiple times
     const existingOrder = await prisma.order.findFirst({
         where: {

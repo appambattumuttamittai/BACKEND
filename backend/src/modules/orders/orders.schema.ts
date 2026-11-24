@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 export const createOrderSchema = z.object({
-  customerName: z.string().min(1, 'Name is required').max(100),
+  customerName: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100)
+    .refine((val) => !/[0-9]/.test(val), { message: 'Name cannot contain numbers' }),
   phone: z
     .string()
     .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 export declare const createOrderSchema: z.ZodObject<{
-    customerName: z.ZodString;
+    customerName: z.ZodEffects<z.ZodString, string, string>;
     phone: z.ZodString;
     productId: z.ZodString;
     quantity: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;

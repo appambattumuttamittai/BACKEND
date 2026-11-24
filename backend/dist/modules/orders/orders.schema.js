@@ -3,7 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createOrderSchema = void 0;
 const zod_1 = require("zod");
 exports.createOrderSchema = zod_1.z.object({
-    customerName: zod_1.z.string().min(1, 'Name is required').max(100),
+    customerName: zod_1.z
+        .string()
+        .min(2, 'Name must be at least 2 characters')
+        .max(100)
+        .refine((val) => !/[0-9]/.test(val), { message: 'Name cannot contain numbers' }),
     phone: zod_1.z
         .string()
         .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),

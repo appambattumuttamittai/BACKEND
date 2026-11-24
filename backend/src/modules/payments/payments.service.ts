@@ -201,7 +201,11 @@ export async function handleRazorpayWebhook(
   const config = getConfig();
   const secret = config.RAZORPAY_WEBHOOK_SECRET || config.RAZORPAY_KEY_SECRET;
 
-  if (secret && signature) {
+  if (secret) {
+    if (!signature) {
+      console.error('[Razorpay Webhook] Missing signature header');
+      throw new Error('INVALID_WEBHOOK_SIGNATURE');
+    }
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(rawBody)
