@@ -470,7 +470,7 @@ export function generateOrderInvoicePDF(order: OrderInvoiceData): Buffer {
   stream.push('20 48 Td');
   stream.push(`(${escapePdfText('(+91) 78719 49015')}) Tj`);
   stream.push('105 0 Td');
-  stream.push(`(orders@appampattu.com) Tj`);
+  stream.push(`(appampattueggsweets@gmail.com) Tj`);
   stream.push('115 0 Td');
   stream.push(`(Villupuram, Tamil Nadu) Tj`);
   stream.push('ET');
