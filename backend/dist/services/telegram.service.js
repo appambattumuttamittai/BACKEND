@@ -4,12 +4,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendTelegramMessage = sendTelegramMessage;
+exports.notifyLeadTelegram = notifyLeadTelegram;
 exports.notifyOrderPending = notifyOrderPending;
 exports.notifyOrder = notifyOrder;
 exports.sendTelegramDocument = sendTelegramDocument;
 const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../config");
 const email_service_1 = require("./email.service");
+const recentLeadAlerts = new Map();
 async function sendTelegramMessage(message) {
     const config = (0, config_1.getConfig)();
     try {
@@ -22,6 +24,21 @@ async function sendTelegramMessage(message) {
     catch (err) {
         console.error('Telegram notification failed (non-fatal):', err.message);
     }
+}
+/**
+ * Deduplicated lead alert to prevent spamming identical Telegram notifications
+ * Cooldown: 30 minutes per customer phone number
+ */
+async function notifyLeadTelegram(phone, message) {
+    const clean = phone.replace(/\D/g, '');
+    const now = Date.now();
+    const lastSent = recentLeadAlerts.get(clean);
+    if (lastSent && now - lastSent < 30 * 60 * 1000) {
+        console.log(`[Telegram] Suppressing duplicate lead alert for ${clean} (30m cooldown active)`);
+        return;
+    }
+    recentLeadAlerts.set(clean, now);
+    await sendTelegramMessage(message);
 }
 // 🔔 NOTIFICATION 1 — Sent when order is created, before Razorpay payment
 async function notifyOrderPending(order) {

@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { getConfig } from '../../config';
 
 const submitSchema = z.object({
   name: z.string().min(2).max(60),
@@ -8,6 +9,15 @@ const submitSchema = z.object({
 });
 
 const feedbackRoutes: FastifyPluginAsync = async (fastify) => {
+  // GET /api/feedback/google-review-url — public review link
+  fastify.get('/google-review-url', async (_request, reply) => {
+    const config = getConfig();
+    const url =
+      config.GOOGLE_REVIEW_URL ||
+      'https://www.google.com/search?q=Appampattu+Mutta+Mittai+Villupuram+reviews';
+    return reply.send({ url });
+  });
+
   // GET /api/feedback — public, returns only approved feedbacks
   fastify.get('/', async (_request, reply) => {
     const feedbacks = await fastify.prisma.feedback.findMany({

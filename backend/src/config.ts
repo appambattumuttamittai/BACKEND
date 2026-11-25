@@ -36,6 +36,7 @@ const envSchema = z.object({
   GOOGLE_SHEETS_SPREADSHEET_ID: z.string().optional().default(''),
   GOOGLE_SHEETS_SHEET_NAME: z.string().default('Orders'),
   GOOGLE_SHEETS_URL: z.string().optional(),
+  GOOGLE_REVIEW_URL: z.string().optional().default(''),
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),

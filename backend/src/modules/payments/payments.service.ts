@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { PrismaClient, OrderStatus } from '@prisma/client';
 import { notifyOrder, sendTelegramDocument } from '../../services/telegram.service';
-import { notifyOrderPaidEmail } from '../../services/email.service';
+import { notifyOrderPaidEmail, sendCustomerOrderReceiptEmail } from '../../services/email.service';
 import { updateOrderInSheet } from '../../services/sheets.service';
 import { generateOrderInvoicePDF } from '../../services/pdf.service';
 import { getConfig } from '../../config';
@@ -141,9 +141,11 @@ export async function confirmOrderPaid(
       ...updated,
       transactionId: razorpayPaymentId,
     });
+    const invoiceFilename = `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`;
+
     sendTelegramDocument(
       pdfBuffer,
-      `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
+      invoiceFilename,
       `🧾 <b>Official Tax Invoice & Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n📍 Delivery: ${deliveryMethodText}\n✅ Status: PAID / CONFIRMED`
     ).catch(console.error);
 
@@ -155,10 +157,40 @@ export async function confirmOrderPaid(
         transactionId: razorpayPaymentId,
       },
       {
-        filename: `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
+        filename: invoiceFilename,
         buffer: pdfBuffer,
       }
     ).catch(console.error);
+
+    // 📧 Send Official Order Receipt & Invoice PDF directly to the Customer's Gmail
+    let customerEmail = updated.email;
+    if (!customerEmail && updated.otpSessionId) {
+      const otpSess = await prisma.otpSession.findUnique({
+        where: { id: updated.otpSessionId },
+      });
+      customerEmail = otpSess?.email || null;
+    }
+
+    if (customerEmail) {
+      sendCustomerOrderReceiptEmail(
+        {
+          to: customerEmail,
+          id: updated.id,
+          customerName: updated.customerName,
+          phone: updated.phone,
+          weight: updated.adminNotes || updated.product.weight,
+          price: updated.totalAmount,
+          streetAddress: updated.streetAddress,
+          city: updated.city,
+          deliveryMethod: deliveryMethodText,
+          transactionId: razorpayPaymentId,
+        },
+        {
+          filename: invoiceFilename,
+          buffer: pdfBuffer,
+        }
+      ).catch(console.error);
+    }
   } catch (pdfErr) {
     console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);
   }

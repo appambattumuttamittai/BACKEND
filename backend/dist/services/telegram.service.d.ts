@@ -1,4 +1,9 @@
 export declare function sendTelegramMessage(message: string): Promise<void>;
+/**
+ * Deduplicated lead alert to prevent spamming identical Telegram notifications
+ * Cooldown: 30 minutes per customer phone number
+ */
+export declare function notifyLeadTelegram(phone: string, message: string): Promise<void>;
 export declare function notifyOrderPending(order: {
     id: string;
     customerName: string;

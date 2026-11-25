@@ -139,7 +139,7 @@ export async function sendAdminEmail(options: {
   }
 }
 
-// 🔐 CUSTOMER OTP EMAIL (Dynamic 6-digit random code valid for 10 minutes)
+// 🔐 CUSTOMER OTP EMAIL (Enterprise Black & White Professional Theme)
 export async function sendCustomerOtpEmail(options: {
   email: string;
   customerName?: string;
@@ -148,35 +148,86 @@ export async function sendCustomerOtpEmail(options: {
   const config = getConfig();
 
   const nameGreeting = options.customerName ? `Hello ${options.customerName},` : 'Hello,';
-  const text = `${nameGreeting}\n\nYour verification code for Appampattu Mutta Mittai is: ${options.code}\n\nThis code is valid for 10 minutes. Please do not share this code with anyone.\n\nAppampattu Mutta Mittai\nVillupuram Railway Station, 1st Platform, Villupuram, Tamil Nadu - 605602`;
+  const text = `${nameGreeting}\n\nYour verification code for Appampattu Mutta Mittai is: ${options.code}\n\nAccount Email: ${options.email}\nValid for 10 minutes. Please do not share this code with anyone.\n\nAppampattu Mutta Mittai\nVillupuram Railway Station, 1st Platform, Villupuram, Tamil Nadu - 605602`;
 
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #FFFBF6; border: 1.5px solid #E5D5C5; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(88,42,0,0.08);">
-      <div style="background: #582A00; padding: 22px; text-align: center; color: #FFFFFF;">
-        <h2 style="margin: 0; font-size: 20px; letter-spacing: 0.5px;">Appampattu Mutta Mittai</h2>
-        <p style="margin: 6px 0 0 0; font-size: 13px; color: #F5B51B;">Order Verification Code</p>
-      </div>
-      <div style="padding: 28px 24px; text-align: center;">
-        <p style="font-size: 15px; color: #3A1C10; margin-top: 0; text-align: left;">
-          ${nameGreeting}
-        </p>
-        <p style="font-size: 14px; color: #582A00; text-align: left; line-height: 1.5;">
-          Use the 6-digit verification code below to verify your order:
-        </p>
-        <div style="margin: 24px auto; padding: 16px 28px; background: #FFFFFF; border: 2px dashed #C42F2C; border-radius: 12px; display: inline-block;">
-          <span style="font-size: 32px; font-weight: 900; letter-spacing: 8px; color: #C42F2C; font-family: monospace;">
-            ${options.code}
-          </span>
-        </div>
-        <p style="font-size: 13px; color: #7A5C43; margin-bottom: 0;">
-          ⏰ Valid for <strong>10 minutes</strong>. Do not share this code with anyone.
-        </p>
-      </div>
-      <div style="background: #F3EAE1; padding: 14px; text-align: center; font-size: 11px; color: #8A684C; line-height: 1.4;">
-        Appampattu Mutta Mittai • Villupuram Railway Station, 1st Platform, Villupuram, Tamil Nadu - 605602<br/>
-        For support, WhatsApp: +91 78719 49015
-      </div>
-    </div>
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F3F4F6; padding: 32px 12px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" style="max-width: 520px; background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E5E7EB; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); overflow: hidden;" cellspacing="0" cellpadding="0">
+              <!-- Dark Black Enterprise Header -->
+              <tr>
+                <td style="background-color: #000000; padding: 26px 28px; text-align: left; border-bottom: 1px solid #1F2937;">
+                  <div style="font-size: 11px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 2px;">
+                    Order Verification
+                  </div>
+                  <h1 style="margin: 6px 0 0 0; font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: 0.3px;">
+                    Appampattu Mutta Mittai
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- White Content Area with Crisp Dark Black Text -->
+              <tr>
+                <td style="padding: 32px 28px; background-color: #FFFFFF;">
+                  <p style="margin: 0 0 16px 0; font-size: 15px; color: #111827; font-weight: 600;">
+                    ${nameGreeting}
+                  </p>
+                  <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #374151;">
+                    Please use the 6-digit verification code below to verify your contact information and confirm your order.
+                  </p>
+
+                  <!-- High-Contrast Enterprise OTP Box -->
+                  <div style="background-color: #F9FAFB; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 24px 20px; text-align: center; margin: 24px 0;">
+                    <div style="font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;">
+                      Your One-Time Code
+                    </div>
+                    <div style="font-size: 42px; font-weight: 900; letter-spacing: 12px; color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'SFMono-Regular', Consolas, 'Courier New', monospace; line-height: 1; padding: 6px 0 12px 12px;">
+                      ${options.code}
+                    </div>
+
+                    <!-- Directly Linked Customer Email -->
+                    <div style="padding-top: 14px; border-top: 1px solid #E5E7EB; font-size: 12px; color: #4B5563;">
+                      Account Email: <strong style="color: #000000; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">${options.email}</strong>
+                    </div>
+                  </div>
+
+                  <p style="margin: 0 0 10px 0; font-size: 13px; color: #374151; line-height: 1.5;">
+                    ⏱️ This code is valid for <strong>10 minutes</strong>. For your security, do not share this code with anyone.
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: #9CA3AF; line-height: 1.5;">
+                    If you did not request this verification, you can safely ignore this email.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Dark Black Enterprise Footer -->
+              <tr>
+                <td style="background-color: #000000; padding: 22px 28px; text-align: left; color: #9CA3AF; font-size: 12px; line-height: 1.5; border-top: 1px solid #1F2937;">
+                  <div style="color: #FFFFFF; font-weight: 700; font-size: 13px; margin-bottom: 4px;">
+                    Appampattu Mutta Mittai
+                  </div>
+                  <div>
+                    Villupuram Railway Station, 1st Platform, Villupuram, Tamil Nadu - 605602
+                  </div>
+                  <div style="margin-top: 8px; font-size: 11px; color: #6B7280;">
+                    Support: <a href="mailto:appampattueggsweets@gmail.com" style="color: #D1D5DB; text-decoration: underline;">appampattueggsweets@gmail.com</a> | WhatsApp: +91 78719 49015
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
   `;
 
   // 1. Send via Resend API (0% spam, authenticated domain)
@@ -381,4 +432,166 @@ export async function notifyOrderPaidEmail(
       attachments: pdfAttachment ? [{ filename: pdfAttachment.filename, content: pdfAttachment.buffer }] : undefined,
     });
   });
+}
+
+// 🧾 CUSTOMER ORDER RECEIPT EMAIL (Enterprise Black & White Professional Theme)
+export async function sendCustomerOrderReceiptEmail(
+  order: {
+    to: string;
+    id: string;
+    customerName: string;
+    phone: string;
+    weight: string;
+    price: number;
+    streetAddress?: string | null;
+    city?: string | null;
+    deliveryMethod?: string | null;
+    transactionId?: string | null;
+  },
+  pdfAttachment?: { filename: string; buffer: Buffer }
+): Promise<boolean> {
+  const config = getConfig();
+  const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const orderIdShort = order.id.slice(-8).toUpperCase();
+
+  const subject = `Receipt & Order Confirmation #${orderIdShort} — Appampattu Mutta Mittai`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F3F4F6; padding: 32px 12px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" style="max-width: 560px; background-color: #FFFFFF; border-radius: 12px; border: 1px solid #E5E7EB; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06); overflow: hidden;" cellspacing="0" cellpadding="0">
+              <!-- Dark Black Enterprise Header -->
+              <tr>
+                <td style="background-color: #000000; padding: 26px 28px; text-align: left; border-bottom: 1px solid #1F2937;">
+                  <div style="font-size: 11px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: 2px;">
+                    Official Receipt & Order Confirmation
+                  </div>
+                  <h1 style="margin: 6px 0 0 0; font-size: 20px; font-weight: 800; color: #FFFFFF; letter-spacing: 0.3px;">
+                    Appampattu Mutta Mittai
+                  </h1>
+                </td>
+              </tr>
+
+              <!-- White Content Area with Crisp Dark Black Text -->
+              <tr>
+                <td style="padding: 32px 28px; background-color: #FFFFFF;">
+                  <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 700; color: #065F46; margin-bottom: 16px;">
+                    ✓ PAYMENT CONFIRMED
+                  </div>
+
+                  <p style="margin: 0 0 16px 0; font-size: 16px; color: #111827; font-weight: 700;">
+                    Thank you for your order, ${order.customerName}!
+                  </p>
+                  <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #374151;">
+                    Your payment of <strong>₹${order.price}</strong> has been received successfully. Your authentic traditional sweet is being freshly packed for you.
+                  </p>
+
+                  <!-- Receipt Summary Table -->
+                  <div style="background-color: #F9FAFB; border: 1.5px solid #E5E7EB; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; border-bottom: 1px solid #E5E7EB; padding-bottom: 8px;">
+                      Order Summary
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #1F2937;">
+                      <tr>
+                        <td style="padding: 6px 0; color: #6B7280; width: 140px;">Order ID:</td>
+                        <td style="padding: 6px 0; font-family: monospace; font-weight: 700; color: #000000;">#${orderIdShort}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #6B7280;">Item / Pack Size:</td>
+                        <td style="padding: 6px 0; font-weight: 600; color: #111827;">${order.weight}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 6px 0; color: #6B7280;">Amount Paid:</td>
+                        <td style="padding: 6px 0; font-size: 15px; font-weight: 800; color: #000000;">₹${order.price}</td>
+                      </tr>
+                      ${order.deliveryMethod ? `<tr><td style="padding: 6px 0; color: #6B7280;">Fulfillment:</td><td style="padding: 6px 0; font-weight: 600; color: #111827;">${order.deliveryMethod}</td></tr>` : ''}
+                      ${order.streetAddress ? `<tr><td style="padding: 6px 0; color: #6B7280;">Address:</td><td style="padding: 6px 0; color: #374151;">${order.streetAddress}, ${order.city || ''}</td></tr>` : ''}
+                      ${order.transactionId ? `<tr><td style="padding: 6px 0; color: #6B7280;">Payment Reference:</td><td style="padding: 6px 0; font-family: monospace; color: #4B5563;">${order.transactionId}</td></tr>` : ''}
+                      <tr>
+                        <td style="padding: 6px 0; color: #6B7280;">Date & Time:</td>
+                        <td style="padding: 6px 0; color: #4B5563;">${time}</td>
+                      </tr>
+                    </table>
+                  </div>
+
+                  <p style="margin: 0 0 10px 0; font-size: 13px; color: #374151; line-height: 1.5;">
+                    📎 <strong>Your Official Tax Invoice is attached</strong> to this email as a PDF document for your records.
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: #6B7280; line-height: 1.5;">
+                    If you have any questions regarding your delivery or pickup, you can reach us directly on WhatsApp at <strong>+91 78719 49015</strong>.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Dark Black Enterprise Footer -->
+              <tr>
+                <td style="background-color: #000000; padding: 22px 28px; text-align: left; color: #9CA3AF; font-size: 12px; line-height: 1.5; border-top: 1px solid #1F2937;">
+                  <div style="color: #FFFFFF; font-weight: 700; font-size: 13px; margin-bottom: 4px;">
+                    Appampattu Mutta Mittai
+                  </div>
+                  <div>
+                    Villupuram Railway Station, 1st Platform, Villupuram, Tamil Nadu - 605602
+                  </div>
+                  <div style="margin-top: 8px; font-size: 11px; color: #6B7280;">
+                    Support: <a href="mailto:appampattueggsweets@gmail.com" style="color: #D1D5DB; text-decoration: underline;">appampattueggsweets@gmail.com</a> | WhatsApp: +91 78719 49015
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const text = `Thank you for your order, ${order.customerName}!\n\nYour payment of ₹${order.price} for order #${orderIdShort} has been confirmed.\n\nPack Size: ${order.weight}\nDelivery: ${order.deliveryMethod || 'Villupuram'}\nTransaction ID: ${order.transactionId || 'N/A'}\n\nYour PDF tax invoice is attached to this email.\n\nAppampattu Mutta Mittai\nVillupuram Railway Station, 1st Platform, Villupuram, Tamil Nadu - 605602`;
+
+  const attachments = pdfAttachment
+    ? [{ filename: pdfAttachment.filename, content: pdfAttachment.buffer }]
+    : undefined;
+
+  // 1. Send via Resend API (0% spam, authenticated domain)
+  if (config.RESEND_API_KEY) {
+    const resendSuccess = await sendViaResend({
+      to: order.to,
+      subject,
+      html,
+      text,
+      attachments,
+    });
+    if (resendSuccess) {
+      console.log(`[Email] ✅ Customer order receipt sent via Resend to ${order.to}`);
+      return true;
+    }
+  }
+
+  // 2. Fallback to SMTP
+  const transport = getMailTransporter();
+  if (transport) {
+    try {
+      await transport.sendMail({
+        from: `"Appampattu Mutta Mittai" <${config.SMTP_USER || config.ADMIN_NOTIFICATION_EMAIL}>`,
+        to: order.to,
+        subject,
+        html,
+        text,
+        attachments,
+      });
+      console.log(`[Email] ✅ Customer order receipt sent via SMTP to ${order.to}`);
+      return true;
+    } catch (err: unknown) {
+      console.error(`[Email] Failed to send receipt to ${order.to}:`, (err as Error).message);
+    }
+  }
+
+  return false;
 }

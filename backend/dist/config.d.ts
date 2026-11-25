@@ -23,6 +23,7 @@ declare const envSchema: z.ZodObject<{
     GOOGLE_SHEETS_SPREADSHEET_ID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     GOOGLE_SHEETS_SHEET_NAME: z.ZodDefault<z.ZodString>;
     GOOGLE_SHEETS_URL: z.ZodOptional<z.ZodString>;
+    GOOGLE_REVIEW_URL: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     RAZORPAY_KEY_ID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     RAZORPAY_KEY_SECRET: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     RAZORPAY_WEBHOOK_SECRET: z.ZodDefault<z.ZodOptional<z.ZodString>>;
@@ -56,6 +57,7 @@ declare const envSchema: z.ZodObject<{
     GOOGLE_SERVICE_ACCOUNT_JSON: string;
     GOOGLE_SHEETS_SPREADSHEET_ID: string;
     GOOGLE_SHEETS_SHEET_NAME: string;
+    GOOGLE_REVIEW_URL: string;
     RAZORPAY_KEY_ID: string;
     RAZORPAY_KEY_SECRET: string;
     RAZORPAY_WEBHOOK_SECRET: string;
@@ -91,6 +93,7 @@ declare const envSchema: z.ZodObject<{
     GOOGLE_SHEETS_SPREADSHEET_ID?: string | undefined;
     GOOGLE_SHEETS_SHEET_NAME?: string | undefined;
     GOOGLE_SHEETS_URL?: string | undefined;
+    GOOGLE_REVIEW_URL?: string | undefined;
     RAZORPAY_KEY_ID?: string | undefined;
     RAZORPAY_KEY_SECRET?: string | undefined;
     RAZORPAY_WEBHOOK_SECRET?: string | undefined;

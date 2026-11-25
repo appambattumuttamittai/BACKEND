@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { sendOtpSchema, verifyOtpSchema } from './otp.schema';
 import { initiateOtp, validateOtp } from './otp.service';
 import { notifyLeadEmail } from '../../services/email.service';
-import { sendTelegramMessage } from '../../services/telegram.service';
+import { notifyLeadTelegram } from '../../services/telegram.service';
 
 const otpRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post(
@@ -24,7 +24,7 @@ const otpRoutes: FastifyPluginAsync = async (fastify) => {
           result.data.customerName
         );
 
-        // Background lead alert to admin Gmail & Telegram
+        // Deduplicated lead alert to admin Gmail & Telegram (30 min cooldown)
         if (result.data.customerName || result.data.email) {
           notifyLeadEmail({
             customerName: result.data.customerName || 'Customer',
@@ -33,7 +33,8 @@ const otpRoutes: FastifyPluginAsync = async (fastify) => {
           }).catch(() => {});
 
           const emailInfo = result.data.email ? `\n📧 <b>Email:</b> ${result.data.email}` : '';
-          sendTelegramMessage(
+          notifyLeadTelegram(
+            result.data.phone,
             `🛒 <b>Customer on Order Page</b>\n\n👤 <b>Name:</b> ${result.data.customerName || 'Customer'}\n📱 <b>Phone:</b> <code>${result.data.phone}</code>${emailInfo}\n⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`
           ).catch(() => {});
         }
@@ -52,21 +53,12 @@ const otpRoutes: FastifyPluginAsync = async (fastify) => {
   );
 
   /**
-   * Background lead alert when customer enters name & mobile
+   * Background lead alert (preserved for API compatibility, deduplicated)
    */
   fastify.post(
     '/lead',
-    { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } },
+    { config: { rateLimit: { max: 5, timeWindow: '5 minutes' } } },
     async (request, reply) => {
-      const { customerName, phone, email } = (request.body as { customerName?: string; phone?: string; email?: string }) || {};
-      if (phone && phone.replace(/\D/g, '').length === 10) {
-        const cleanPhone = phone.replace(/\D/g, '');
-        notifyLeadEmail({ customerName: customerName || 'Customer', phone: cleanPhone, email }).catch(() => {});
-        const emailInfo = email ? `\n📧 <b>Email:</b> ${email}` : '';
-        sendTelegramMessage(
-          `🛒 <b>Customer on Order Page</b>\n\n👤 <b>Name:</b> ${customerName || 'Customer'}\n📱 <b>Phone:</b> <code>${cleanPhone}</code>${emailInfo}\n⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`
-        ).catch(() => {});
-      }
       return reply.send({ success: true });
     }
   );

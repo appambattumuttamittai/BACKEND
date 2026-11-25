@@ -14,7 +14,7 @@ const otpRoutes = async (fastify) => {
         }
         try {
             const sessionId = await (0, otp_service_1.initiateOtp)(fastify.prisma, result.data.phone, result.data.email, result.data.customerName);
-            // Background lead alert to admin Gmail & Telegram
+            // Deduplicated lead alert to admin Gmail & Telegram (30 min cooldown)
             if (result.data.customerName || result.data.email) {
                 (0, email_service_1.notifyLeadEmail)({
                     customerName: result.data.customerName || 'Customer',
@@ -22,7 +22,7 @@ const otpRoutes = async (fastify) => {
                     email: result.data.email,
                 }).catch(() => { });
                 const emailInfo = result.data.email ? `\n📧 <b>Email:</b> ${result.data.email}` : '';
-                (0, telegram_service_1.sendTelegramMessage)(`🛒 <b>Customer on Order Page</b>\n\n👤 <b>Name:</b> ${result.data.customerName || 'Customer'}\n📱 <b>Phone:</b> <code>${result.data.phone}</code>${emailInfo}\n⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`).catch(() => { });
+                (0, telegram_service_1.notifyLeadTelegram)(result.data.phone, `🛒 <b>Customer on Order Page</b>\n\n👤 <b>Name:</b> ${result.data.customerName || 'Customer'}\n📱 <b>Phone:</b> <code>${result.data.phone}</code>${emailInfo}\n⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`).catch(() => { });
             }
             return reply.send({ success: true, sessionId });
         }
@@ -37,16 +37,9 @@ const otpRoutes = async (fastify) => {
         }
     });
     /**
-     * Background lead alert when customer enters name & mobile
+     * Background lead alert (preserved for API compatibility, deduplicated)
      */
-    fastify.post('/lead', { config: { rateLimit: { max: 10, timeWindow: '5 minutes' } } }, async (request, reply) => {
-        const { customerName, phone, email } = request.body || {};
-        if (phone && phone.replace(/\D/g, '').length === 10) {
-            const cleanPhone = phone.replace(/\D/g, '');
-            (0, email_service_1.notifyLeadEmail)({ customerName: customerName || 'Customer', phone: cleanPhone, email }).catch(() => { });
-            const emailInfo = email ? `\n📧 <b>Email:</b> ${email}` : '';
-            (0, telegram_service_1.sendTelegramMessage)(`🛒 <b>Customer on Order Page</b>\n\n👤 <b>Name:</b> ${customerName || 'Customer'}\n📱 <b>Phone:</b> <code>${cleanPhone}</code>${emailInfo}\n⏰ <b>Time:</b> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`).catch(() => { });
-        }
+    fastify.post('/lead', { config: { rateLimit: { max: 5, timeWindow: '5 minutes' } } }, async (request, reply) => {
         return reply.send({ success: true });
     });
     fastify.post('/verify', { config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (request, reply) => {
