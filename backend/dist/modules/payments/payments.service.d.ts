@@ -1,4 +1,4 @@
-import { PrismaClient, OrderStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 export declare function getRazorpayConfig(): {
     enabled: boolean;
     keyId: string;
@@ -37,8 +37,4 @@ export declare function handleRazorpayWebhook(prisma: PrismaClient, rawBody: str
     message: string;
     orderId?: undefined;
     paymentId?: undefined;
-}>;
-export declare function markPaymentReview(prisma: PrismaClient, orderId: string): Promise<{
-    id: string;
-    status: OrderStatus;
 }>;

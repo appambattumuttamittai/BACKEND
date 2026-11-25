@@ -80,22 +80,14 @@ async function start() {
         const provider = (config.OTP_PROVIDER || 'firebase').toLowerCase();
         if (provider === 'msg91') {
             if (!config.MSG91_AUTH_KEY || !config.MSG91_TEMPLATE_ID) {
-                console.error('⚠️  OTP_PROVIDER=msg91 but MSG91_AUTH_KEY or MSG91_TEMPLATE_ID is missing! OTP will fail.');
+                console.warn('⚠️  OTP_PROVIDER=msg91 requires MSG91_AUTH_KEY and MSG91_TEMPLATE_ID.');
             }
             else {
-                console.log('✅ OTP Provider: MSG91 (live SMS)');
+                console.log('✅ OTP Provider: MSG91 (Live SMS)');
             }
         }
         else {
-            if (config.FIREBASE_TEST_MODE) {
-                console.log(`✅ OTP Provider: Firebase (TEST MODE) — OTP code is: ${config.FIREBASE_TEST_OTP}`);
-            }
-            else if (!config.FIREBASE_API_KEY) {
-                console.error('⚠️  OTP_PROVIDER=firebase but FIREBASE_API_KEY is missing! OTP will fail.');
-            }
-            else {
-                console.log('✅ OTP Provider: Firebase (live SMS)');
-            }
+            console.log('✅ OTP Provider: Ready');
         }
         console.log(`🚀 Server running on port ${config.PORT}`);
         // Start 30-day archive cron (checks daily at midnight IST)

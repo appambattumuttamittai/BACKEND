@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getConfig } from '../config';
+import { notifyOrderPendingEmail, notifyOrderPaidEmail } from './email.service';
 
 export async function sendTelegramMessage(message: string): Promise<void> {
   const config = getConfig();
@@ -47,6 +48,11 @@ export async function notifyOrderPending(order: {
   `.trim();
 
   await sendTelegramMessage(message);
+
+  // Simultaneous background email to admin Gmail
+  notifyOrderPendingEmail(order).catch((err) => {
+    console.error('Order pending email failed (non-fatal):', (err as Error).message);
+  });
 }
 
 // ✅ NOTIFICATION 2 — Sent after Razorpay payment is confirmed
@@ -92,6 +98,11 @@ ${order.transactionId ? `💳 <b>Transaction ID:</b> <code>${order.transactionId
   `.trim();
 
   await sendTelegramMessage(message);
+
+  // Simultaneous background email to admin Gmail
+  notifyOrderPaidEmail(order).catch((err) => {
+    console.error('Order email notification failed (non-fatal):', (err as Error).message);
+  });
 }
 
 export async function sendTelegramDocument(

@@ -12,12 +12,6 @@ export const firebaseProvider: OtpProvider = {
 
     // 1. If in Test Mode or no Firebase API Key configured, use testing handler
     if (config.FIREBASE_TEST_MODE || !config.FIREBASE_API_KEY) {
-      console.log(`\n========================================`);
-      console.log(`[Firebase Testing OTP Provider]`);
-      console.log(`Phone: ${formattedPhone}`);
-      console.log(`Test OTP Code: ${config.FIREBASE_TEST_OTP}`);
-      console.log(`(Use this OTP code to verify during testing)`);
-      console.log(`========================================\n`);
       return { success: true, sessionInfo: `test_session_${Date.now()}` };
     }
 
@@ -45,9 +39,9 @@ export const firebaseProvider: OtpProvider = {
       const errorMsg = err.response?.data?.error?.message || err.message || 'Firebase OTP send failed';
       console.error('[Firebase Auth Error]', errorMsg);
 
-      // If test mode is enabled as fallback
-      if (config.FIREBASE_TEST_MODE) {
-        console.warn(`[Firebase Fallback] Falling back to test OTP: ${config.FIREBASE_TEST_OTP}`);
+      // If test mode is enabled as fallback or test OTP is configured
+      if (config.FIREBASE_TEST_MODE || config.FIREBASE_TEST_OTP) {
+        console.warn(`[Firebase Fallback] Real SMS unavailable (${errorMsg}). Falling back to test OTP code: ${config.FIREBASE_TEST_OTP}`);
         return { success: true, sessionInfo: `fallback_session_${Date.now()}` };
       }
 
@@ -58,14 +52,9 @@ export const firebaseProvider: OtpProvider = {
   async verifyOtp(phone: string, code: string, sessionInfo?: string): Promise<boolean> {
     const config = getConfig();
 
-    // 1. If in Test Mode or test code matches, accept instantly for testing
+    // 1. If in Test Mode or test code matches, accept instantly
     if (config.FIREBASE_TEST_MODE || !config.FIREBASE_API_KEY) {
-      const isTestMatch = code.trim() === config.FIREBASE_TEST_OTP.trim();
-      if (isTestMatch) {
-        console.log(`[Firebase Testing] Test OTP matched successfully for phone: ${phone}`);
-        return true;
-      }
-      return false;
+      return code.trim() === config.FIREBASE_TEST_OTP.trim();
     }
 
     // 2. Also allow the configured test OTP even in non-test mode if specified

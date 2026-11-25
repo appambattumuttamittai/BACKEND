@@ -35,29 +35,24 @@ const dummyFeedbacks = [
     },
 ];
 async function main() {
-    console.log('Seeding products...');
+    let createdCount = 0;
     for (const p of products) {
         const existing = await prisma.product.findUnique({ where: { weight: p.weight } });
         if (!existing) {
             await prisma.product.create({ data: p });
-            console.log(`Created product: ${p.weight} @ ₹${p.price}`);
-        }
-        else {
-            console.log(`Product already exists: ${p.weight}`);
+            createdCount++;
         }
     }
-    console.log('Seeding dummy feedbacks...');
     const existingFeedbacks = await prisma.feedback.count();
     if (existingFeedbacks === 0) {
         for (const f of dummyFeedbacks) {
             await prisma.feedback.create({ data: f });
-            console.log(`Created feedback from: ${f.name}`);
+            createdCount++;
         }
     }
-    else {
-        console.log(`Feedbacks already exist (${existingFeedbacks} found), skipping.`);
+    if (createdCount > 0) {
+        console.log(`✅ Seeded ${createdCount} initial records into database.`);
     }
-    console.log('Seed complete!');
 }
 main()
     .catch((err) => {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 declare const envSchema: z.ZodObject<{
-    DATABASE_URL: z.ZodString;
+    DATABASE_URL: z.ZodEffects<z.ZodString, string, string>;
     NODE_ENV: z.ZodDefault<z.ZodEnum<["development", "production", "test"]>>;
     PORT: z.ZodEffects<z.ZodDefault<z.ZodString>, number, string | undefined>;
     FRONTEND_URL: z.ZodDefault<z.ZodString>;
@@ -26,6 +26,13 @@ declare const envSchema: z.ZodObject<{
     RAZORPAY_KEY_ID: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     RAZORPAY_KEY_SECRET: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     RAZORPAY_WEBHOOK_SECRET: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    ADMIN_NOTIFICATION_EMAIL: z.ZodDefault<z.ZodString>;
+    GMAIL_APP_PASSWORD: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    RESEND_API_KEY: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    RESEND_FROM_EMAIL: z.ZodDefault<z.ZodString>;
+    SMTP_HOST: z.ZodDefault<z.ZodString>;
+    SMTP_PORT: z.ZodEffects<z.ZodDefault<z.ZodString>, number, string | undefined>;
+    SMTP_USER: z.ZodDefault<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     DATABASE_URL: string;
     NODE_ENV: "development" | "production" | "test";
@@ -52,6 +59,13 @@ declare const envSchema: z.ZodObject<{
     RAZORPAY_KEY_ID: string;
     RAZORPAY_KEY_SECRET: string;
     RAZORPAY_WEBHOOK_SECRET: string;
+    ADMIN_NOTIFICATION_EMAIL: string;
+    GMAIL_APP_PASSWORD: string;
+    RESEND_API_KEY: string;
+    RESEND_FROM_EMAIL: string;
+    SMTP_HOST: string;
+    SMTP_PORT: number;
+    SMTP_USER: string;
     GOOGLE_SHEETS_URL?: string | undefined;
 }, {
     DATABASE_URL: string;
@@ -80,6 +94,13 @@ declare const envSchema: z.ZodObject<{
     RAZORPAY_KEY_ID?: string | undefined;
     RAZORPAY_KEY_SECRET?: string | undefined;
     RAZORPAY_WEBHOOK_SECRET?: string | undefined;
+    ADMIN_NOTIFICATION_EMAIL?: string | undefined;
+    GMAIL_APP_PASSWORD?: string | undefined;
+    RESEND_API_KEY?: string | undefined;
+    RESEND_FROM_EMAIL?: string | undefined;
+    SMTP_HOST?: string | undefined;
+    SMTP_PORT?: string | undefined;
+    SMTP_USER?: string | undefined;
 }>;
 export type Env = z.infer<typeof envSchema>;
 export declare function getConfig(): Env;

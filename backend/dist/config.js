@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getConfig = getConfig;
 const zod_1 = require("zod");
 const envSchema = zod_1.z.object({
-    DATABASE_URL: zod_1.z.string().min(1),
+    DATABASE_URL: zod_1.z.string().min(1).transform((v) => v.replace(/^["']|["']$/g, '').trim()),
     NODE_ENV: zod_1.z.enum(['development', 'production', 'test']).default('production'),
     PORT: zod_1.z
         .string()
@@ -41,6 +41,17 @@ const envSchema = zod_1.z.object({
     RAZORPAY_KEY_ID: zod_1.z.string().optional().default(''),
     RAZORPAY_KEY_SECRET: zod_1.z.string().optional().default(''),
     RAZORPAY_WEBHOOK_SECRET: zod_1.z.string().optional().default(''),
+    // Admin Email Notification Settings
+    ADMIN_NOTIFICATION_EMAIL: zod_1.z.string().default('appampattueggsweets@gmail.com'),
+    GMAIL_APP_PASSWORD: zod_1.z.string().optional().default(''),
+    RESEND_API_KEY: zod_1.z.string().optional().default(''),
+    RESEND_FROM_EMAIL: zod_1.z.string().default('orders@appampattueggsweet.com'),
+    SMTP_HOST: zod_1.z.string().default('smtp.gmail.com'),
+    SMTP_PORT: zod_1.z
+        .string()
+        .default('465')
+        .transform((v) => parseInt(v, 10)),
+    SMTP_USER: zod_1.z.string().default('appampattueggsweets@gmail.com'),
 });
 let _config = null;
 function getConfig() {

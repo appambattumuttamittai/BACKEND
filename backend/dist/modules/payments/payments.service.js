@@ -8,11 +8,11 @@ exports.createRazorpayOrder = createRazorpayOrder;
 exports.confirmOrderPaid = confirmOrderPaid;
 exports.verifyRazorpayPayment = verifyRazorpayPayment;
 exports.handleRazorpayWebhook = handleRazorpayWebhook;
-exports.markPaymentReview = markPaymentReview;
 const crypto_1 = __importDefault(require("crypto"));
 const axios_1 = __importDefault(require("axios"));
 const client_1 = require("@prisma/client");
 const telegram_service_1 = require("../../services/telegram.service");
+const email_service_1 = require("../../services/email.service");
 const sheets_service_1 = require("../../services/sheets.service");
 const pdf_service_1 = require("../../services/pdf.service");
 const config_1 = require("../../config");
@@ -123,6 +123,15 @@ async function confirmOrderPaid(prisma, orderId, razorpayPaymentId) {
             transactionId: razorpayPaymentId,
         });
         (0, telegram_service_1.sendTelegramDocument)(pdfBuffer, `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`, `🧾 <b>Official Tax Invoice & Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n📍 Delivery: ${deliveryMethodText}\n✅ Status: PAID / CONFIRMED`).catch(console.error);
+        (0, email_service_1.notifyOrderPaidEmail)({
+            ...updated,
+            price: updated.totalAmount,
+            weight: updated.adminNotes || updated.product.weight,
+            transactionId: razorpayPaymentId,
+        }, {
+            filename: `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
+            buffer: pdfBuffer,
+        }).catch(console.error);
     }
     catch (pdfErr) {
         console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);
@@ -201,58 +210,5 @@ async function handleRazorpayWebhook(prisma, rawBody, signature, eventData) {
         }
     }
     return { success: true, message: `Event ${event} processed` };
-}
-async function markPaymentReview(prisma, orderId) {
-    // First, expire any stale PAYMENT_PENDING orders
-    await prisma.order.updateMany({
-        where: {
-            status: client_1.OrderStatus.PAYMENT_PENDING,
-            paymentExpiry: { lt: new Date() },
-        },
-        data: { status: client_1.OrderStatus.PAYMENT_FAILED },
-    });
-    const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { product: true },
-    });
-    if (!order)
-        throw new Error('ORDER_NOT_FOUND');
-    if (order.status === client_1.OrderStatus.PAYMENT_FAILED) {
-        throw new Error('PAYMENT_EXPIRED');
-    }
-    if (order.status !== client_1.OrderStatus.PAYMENT_PENDING) {
-        throw new Error(`INVALID_STATUS:${order.status}`);
-    }
-    const updated = await prisma.order.update({
-        where: { id: orderId },
-        data: { status: client_1.OrderStatus.PAYMENT_REVIEW },
-        include: { product: true },
-    });
-    (0, telegram_service_1.notifyOrder)({
-        id: updated.id,
-        customerName: updated.customerName,
-        phone: updated.phone,
-        weight: updated.adminNotes || updated.product.weight,
-        price: updated.totalAmount,
-        status: 'PAYMENT_REVIEW',
-        city: updated.city || '',
-    }).catch(console.error);
-    // Generate Receipt PDF and send to Admin via Telegram
-    try {
-        const pdfBuffer = (0, pdf_service_1.generateOrderInvoicePDF)(updated);
-        (0, telegram_service_1.sendTelegramDocument)(pdfBuffer, `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`, `🧾 <b>Invoice & Order Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n🔍 Status: PAYMENT REVIEW`).catch(console.error);
-    }
-    catch (pdfErr) {
-        console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);
-    }
-    (0, sheets_service_1.updateOrderInSheet)(orderId, 'PAYMENT_REVIEW', {
-        customerName: updated.customerName,
-        phone: updated.phone,
-        weight: updated.adminNotes || updated.product.weight,
-        amount: updated.totalAmount,
-        city: updated.city || '',
-        createdAt: updated.createdAt,
-    }).catch(console.error);
-    return { id: updated.id, status: updated.status };
 }
 //# sourceMappingURL=payments.service.js.map

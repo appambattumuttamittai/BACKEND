@@ -45,6 +45,7 @@ async function getOrders(prisma, filters) {
             { customerName: { contains: filters.search, mode: 'insensitive' } },
             { id: { contains: filters.search, mode: 'insensitive' } },
             { phone: { contains: filters.search } },
+            { email: { contains: filters.search, mode: 'insensitive' } },
             { city: { contains: filters.search, mode: 'insensitive' } },
             { streetAddress: { contains: filters.search, mode: 'insensitive' } },
         ];

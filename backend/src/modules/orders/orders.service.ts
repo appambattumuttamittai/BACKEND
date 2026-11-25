@@ -7,6 +7,7 @@ export async function createOrder(
   data: {
     customerName: string;
     phone: string;
+    email?: string;
     productId: string;
     quantity?: number;
     items?: Array<{ productId: string; quantity: number }>;
@@ -101,10 +102,15 @@ export async function createOrder(
   // 30 minute payment window
   const paymentExpiry = new Date(Date.now() + 30 * 60 * 1000);
 
+  const customerEmail = data.email || session?.email || null;
+  const verifiedOtp = session?.otpCode || null;
+
   const order = await prisma.order.create({
     data: {
       customerName: data.customerName,
       phone: data.phone,
+      email: customerEmail,
+      otpCode: verifiedOtp,
       productId: primaryProductId,
       quantity: totalQuantity,
       totalAmount,
@@ -118,6 +124,34 @@ export async function createOrder(
     },
     include: { product: true },
   });
+
+  // Persistent backup of order record in AppConfig
+  await prisma.appConfig.upsert({
+    where: { key: `order_meta:${order.id}` },
+    create: {
+      key: `order_meta:${order.id}`,
+      value: JSON.stringify({
+        orderId: order.id,
+        customerName: order.customerName,
+        phone: order.phone,
+        email: customerEmail,
+        otpCode: verifiedOtp,
+        totalAmount,
+        createdAt: new Date().toISOString(),
+      }),
+    },
+    update: {
+      value: JSON.stringify({
+        orderId: order.id,
+        customerName: order.customerName,
+        phone: order.phone,
+        email: customerEmail,
+        otpCode: verifiedOtp,
+        totalAmount,
+        updatedAt: new Date().toISOString(),
+      }),
+    },
+  }).catch(() => {});
 
   // Async notifications - don't block response
   const isPickup = data.streetAddress?.toLowerCase().includes('pick up') ||

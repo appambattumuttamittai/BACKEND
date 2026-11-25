@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { PrismaClient, OrderStatus } from '@prisma/client';
 import { notifyOrder, sendTelegramDocument } from '../../services/telegram.service';
+import { notifyOrderPaidEmail } from '../../services/email.service';
 import { updateOrderInSheet } from '../../services/sheets.service';
 import { generateOrderInvoicePDF } from '../../services/pdf.service';
 import { getConfig } from '../../config';
@@ -145,6 +146,19 @@ export async function confirmOrderPaid(
       `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
       `🧾 <b>Official Tax Invoice & Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n📍 Delivery: ${deliveryMethodText}\n✅ Status: PAID / CONFIRMED`
     ).catch(console.error);
+
+    notifyOrderPaidEmail(
+      {
+        ...updated,
+        price: updated.totalAmount,
+        weight: updated.adminNotes || updated.product.weight,
+        transactionId: razorpayPaymentId,
+      },
+      {
+        filename: `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
+        buffer: pdfBuffer,
+      }
+    ).catch(console.error);
   } catch (pdfErr) {
     console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);
   }
@@ -250,72 +264,4 @@ export async function handleRazorpayWebhook(
   }
 
   return { success: true, message: `Event ${event} processed` };
-}
-
-export async function markPaymentReview(
-  prisma: PrismaClient,
-  orderId: string
-): Promise<{ id: string; status: OrderStatus }> {
-  // First, expire any stale PAYMENT_PENDING orders
-  await prisma.order.updateMany({
-    where: {
-      status: OrderStatus.PAYMENT_PENDING,
-      paymentExpiry: { lt: new Date() },
-    },
-    data: { status: OrderStatus.PAYMENT_FAILED },
-  });
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { product: true },
-  });
-
-  if (!order) throw new Error('ORDER_NOT_FOUND');
-
-  if (order.status === OrderStatus.PAYMENT_FAILED) {
-    throw new Error('PAYMENT_EXPIRED');
-  }
-
-  if (order.status !== OrderStatus.PAYMENT_PENDING) {
-    throw new Error(`INVALID_STATUS:${order.status}`);
-  }
-
-  const updated = await prisma.order.update({
-    where: { id: orderId },
-    data: { status: OrderStatus.PAYMENT_REVIEW },
-    include: { product: true },
-  });
-
-  notifyOrder({
-    id: updated.id,
-    customerName: updated.customerName,
-    phone: updated.phone,
-    weight: updated.adminNotes || updated.product.weight,
-    price: updated.totalAmount,
-    status: 'PAYMENT_REVIEW',
-    city: updated.city || '',
-  }).catch(console.error);
-
-  // Generate Receipt PDF and send to Admin via Telegram
-  try {
-    const pdfBuffer = generateOrderInvoicePDF(updated);
-    sendTelegramDocument(
-      pdfBuffer,
-      `Invoice-${updated.id.slice(-8).toUpperCase()}.pdf`,
-      `🧾 <b>Invoice & Order Receipt #${updated.id.slice(-8).toUpperCase()}</b>\n👤 Customer: ${updated.customerName}\n📱 Phone: ${updated.phone}\n💰 Amount: ₹${updated.totalAmount}\n🔍 Status: PAYMENT REVIEW`
-    ).catch(console.error);
-  } catch (pdfErr) {
-    console.error('Invoice PDF generation or Telegram send failed (non-fatal):', pdfErr);
-  }
-
-  updateOrderInSheet(orderId, 'PAYMENT_REVIEW', {
-    customerName: updated.customerName,
-    phone: updated.phone,
-    weight: updated.adminNotes || updated.product.weight,
-    amount: updated.totalAmount,
-    city: updated.city || '',
-    createdAt: updated.createdAt,
-  }).catch(console.error);
-
-  return { id: updated.id, status: updated.status };
 }

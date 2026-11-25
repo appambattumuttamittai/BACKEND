@@ -2,6 +2,7 @@ import { z } from 'zod';
 export declare const createOrderSchema: z.ZodObject<{
     customerName: z.ZodEffects<z.ZodString, string, string>;
     phone: z.ZodString;
+    email: z.ZodUnion<[z.ZodOptional<z.ZodString>, z.ZodLiteral<"">]>;
     productId: z.ZodString;
     quantity: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     items: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -26,6 +27,7 @@ export declare const createOrderSchema: z.ZodObject<{
     otpSessionId: string;
     streetAddress: string;
     city: string;
+    email?: string | undefined;
     items?: {
         productId: string;
         quantity: number;
@@ -38,6 +40,7 @@ export declare const createOrderSchema: z.ZodObject<{
     otpSessionId: string;
     streetAddress: string;
     city: string;
+    email?: string | undefined;
     quantity?: number | undefined;
     items?: {
         productId: string;

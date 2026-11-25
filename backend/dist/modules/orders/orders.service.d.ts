@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 export declare function createOrder(prisma: PrismaClient, data: {
     customerName: string;
     phone: string;
+    email?: string;
     productId: string;
     quantity?: number;
     items?: Array<{
@@ -25,9 +26,12 @@ export declare function createOrder(prisma: PrismaClient, data: {
     };
     status: import(".prisma/client").$Enums.OrderStatus;
     phone: string;
-    id: string;
-    createdAt: Date;
+    email: string | null;
     customerName: string;
+    id: string;
+    otpCode: string | null;
+    createdAt: Date;
+    updatedAt: Date;
     productId: string;
     quantity: number;
     otpSessionId: string | null;
@@ -39,6 +43,5 @@ export declare function createOrder(prisma: PrismaClient, data: {
     paidAt: Date | null;
     pickedUpAt: Date | null;
     adminNotes: string | null;
-    updatedAt: Date;
 }>;
 export declare function expireStaleOrders(prisma: PrismaClient): Promise<number>;

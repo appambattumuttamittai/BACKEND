@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().min(1).transform((v) => v.replace(/^["']|["']$/g, '').trim()),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
   PORT: z
     .string()
@@ -39,6 +39,17 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+  // Admin Email Notification Settings
+  ADMIN_NOTIFICATION_EMAIL: z.string().default('appampattueggsweets@gmail.com'),
+  GMAIL_APP_PASSWORD: z.string().optional().default(''),
+  RESEND_API_KEY: z.string().optional().default(''),
+  RESEND_FROM_EMAIL: z.string().default('orders@appampattueggsweet.com'),
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z
+    .string()
+    .default('465')
+    .transform((v) => parseInt(v, 10)),
+  SMTP_USER: z.string().default('appampattueggsweets@gmail.com'),
 });
 
 export type Env = z.infer<typeof envSchema>;

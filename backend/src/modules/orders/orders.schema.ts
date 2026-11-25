@@ -9,6 +9,7 @@ export const createOrderSchema = z.object({
   phone: z
     .string()
     .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),
+  email: z.string().email().optional().or(z.literal('')),
   productId: z.string().min(1, 'Product is required'),
   quantity: z.number().int().positive().optional().default(1),
   items: z.array(

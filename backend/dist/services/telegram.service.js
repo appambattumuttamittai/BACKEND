@@ -9,6 +9,7 @@ exports.notifyOrder = notifyOrder;
 exports.sendTelegramDocument = sendTelegramDocument;
 const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../config");
+const email_service_1 = require("./email.service");
 async function sendTelegramMessage(message) {
     const config = (0, config_1.getConfig)();
     try {
@@ -41,6 +42,10 @@ async function notifyOrderPending(order) {
 ⏳ <i>Waiting for payment...</i>
   `.trim();
     await sendTelegramMessage(message);
+    // Simultaneous background email to admin Gmail
+    (0, email_service_1.notifyOrderPendingEmail)(order).catch((err) => {
+        console.error('Order pending email failed (non-fatal):', err.message);
+    });
 }
 // ✅ NOTIFICATION 2 — Sent after Razorpay payment is confirmed
 async function notifyOrder(order) {
@@ -71,6 +76,10 @@ ${order.transactionId ? `💳 <b>Transaction ID:</b> <code>${order.transactionId
 ⏰ <b>Time:</b> ${time}
   `.trim();
     await sendTelegramMessage(message);
+    // Simultaneous background email to admin Gmail
+    (0, email_service_1.notifyOrderPaidEmail)(order).catch((err) => {
+        console.error('Order email notification failed (non-fatal):', err.message);
+    });
 }
 async function sendTelegramDocument(fileBuffer, filename, caption) {
     const config = (0, config_1.getConfig)();

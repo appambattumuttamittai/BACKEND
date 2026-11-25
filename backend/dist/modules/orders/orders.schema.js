@@ -11,6 +11,7 @@ exports.createOrderSchema = zod_1.z.object({
     phone: zod_1.z
         .string()
         .regex(/^[6-9]\d{9}$/, 'Invalid Indian mobile number'),
+    email: zod_1.z.string().email().optional().or(zod_1.z.literal('')),
     productId: zod_1.z.string().min(1, 'Product is required'),
     quantity: zod_1.z.number().int().positive().optional().default(1),
     items: zod_1.z.array(zod_1.z.object({

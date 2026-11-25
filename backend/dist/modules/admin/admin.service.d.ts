@@ -28,9 +28,12 @@ export declare function getOrders(prisma: PrismaClient, filters: {
         };
         status: import(".prisma/client").$Enums.OrderStatus;
         phone: string;
-        id: string;
-        createdAt: Date;
+        email: string | null;
         customerName: string;
+        id: string;
+        otpCode: string | null;
+        createdAt: Date;
+        updatedAt: Date;
         productId: string;
         quantity: number;
         otpSessionId: string | null;
@@ -42,7 +45,6 @@ export declare function getOrders(prisma: PrismaClient, filters: {
         paidAt: Date | null;
         pickedUpAt: Date | null;
         adminNotes: string | null;
-        updatedAt: Date;
     }[];
     total: number;
     page: number;
@@ -62,9 +64,12 @@ export declare function updateOrderStatus(prisma: PrismaClient, orderId: string,
 } & {
     status: import(".prisma/client").$Enums.OrderStatus;
     phone: string;
-    id: string;
-    createdAt: Date;
+    email: string | null;
     customerName: string;
+    id: string;
+    otpCode: string | null;
+    createdAt: Date;
+    updatedAt: Date;
     productId: string;
     quantity: number;
     otpSessionId: string | null;
@@ -76,7 +81,6 @@ export declare function updateOrderStatus(prisma: PrismaClient, orderId: string,
     paidAt: Date | null;
     pickedUpAt: Date | null;
     adminNotes: string | null;
-    updatedAt: Date;
 }>;
 export declare function exportOrdersCsv(prisma: PrismaClient, filters: {
     status?: string;
