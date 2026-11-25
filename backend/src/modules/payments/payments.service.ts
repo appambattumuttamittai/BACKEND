@@ -69,34 +69,61 @@ export async function createRazorpayOrder(
   };
 }
 
+const sentReceipts = new Set<string>();
+
 export async function confirmOrderPaid(
   prisma: PrismaClient,
   orderId: string,
   razorpayPaymentId: string
 ) {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: { product: true },
+  // 1. In-memory deduplication check
+  if (sentReceipts.has(orderId)) {
+    console.log(`[Payments] Order #${orderId} already processed and receipt sent. Skipping duplicate.`);
+    return { id: orderId, status: OrderStatus.PAID, paymentId: razorpayPaymentId };
+  }
+
+  // 2. Persistent DB check in AppConfig
+  const alreadySentInDb = await prisma.appConfig.findUnique({
+    where: { key: `receipt_sent:${orderId}` },
+  });
+  if (alreadySentInDb) {
+    console.log(`[Payments] Receipt already sent for order #${orderId} according to DB record. Skipping.`);
+    return { id: orderId, status: OrderStatus.PAID, paymentId: razorpayPaymentId };
+  }
+
+  // 3. Atomic DB check-and-update to prevent race condition between frontend verify & Razorpay webhook
+  const updateResult = await prisma.order.updateMany({
+    where: {
+      id: orderId,
+      status: { not: OrderStatus.PAID },
+    },
+    data: {
+      status: OrderStatus.PAID,
+      paidAt: new Date(),
+    },
   });
 
-  if (!order) throw new Error('ORDER_NOT_FOUND');
-
-  // Idempotency: If order is already PAID, return without duplicating notifications
-  if (order.status === OrderStatus.PAID) {
-    return {
-      id: order.id,
-      status: order.status,
-      paymentId: razorpayPaymentId,
-    };
+  if (updateResult.count === 0) {
+    console.log(`[Payments] Order #${orderId} was already marked PAID. Skipping duplicate notifications.`);
+    return { id: orderId, status: OrderStatus.PAID, paymentId: razorpayPaymentId };
   }
+
+  // Lock order in memory and in DB so duplicate webhook or verify call never re-sends receipt
+  sentReceipts.add(orderId);
+  await prisma.appConfig
+    .create({
+      data: {
+        key: `receipt_sent:${orderId}`,
+        value: new Date().toISOString(),
+      },
+    })
+    .catch(() => {});
 
   const notesAppend = `Razorpay: ${razorpayPaymentId}`;
   const updated = await prisma.order.update({
     where: { id: orderId },
     data: {
-      status: OrderStatus.PAID,
-      paidAt: new Date(),
-      adminNotes: order.adminNotes ? `${order.adminNotes} | ${notesAppend}` : notesAppend,
+      adminNotes: notesAppend,
     },
     include: { product: true },
   });
