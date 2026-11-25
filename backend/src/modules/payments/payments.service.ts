@@ -119,7 +119,16 @@ export async function confirmOrderPaid(
     })
     .catch(() => {});
 
-  const notesAppend = `Razorpay: ${razorpayPaymentId}`;
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: orderId },
+  });
+  const prevNotes = existingOrder?.adminNotes?.trim() || '';
+  const notesAppend = prevNotes && !prevNotes.includes('Razorpay:')
+    ? `${prevNotes} | Razorpay: ${razorpayPaymentId}`
+    : prevNotes.includes('Razorpay:')
+      ? prevNotes
+      : `Razorpay: ${razorpayPaymentId}`;
+
   const updated = await prisma.order.update({
     where: { id: orderId },
     data: {
@@ -139,18 +148,22 @@ export async function confirmOrderPaid(
     ? '🏬 Store Pickup (Villupuram Railway Station)'
     : '🚚 Home Delivery (Within Villupuram City)';
 
-  notifyOrder({
+  const itemSummary = prevNotes.split('|')[0]?.trim() || updated.product?.weight || 'Mutta Mittai Pack';
+
+  await notifyOrder({
     id: updated.id,
     customerName: updated.customerName,
     phone: updated.phone,
-    weight: updated.adminNotes || updated.product.weight,
+    weight: itemSummary,
     price: updated.totalAmount,
     status: 'PAID',
     city: updated.city || '',
     streetAddress: updated.streetAddress || '',
     deliveryMethod: deliveryTextPaid,
     transactionId: razorpayPaymentId,
-  }).catch(console.error);
+  }).catch((err) => {
+    console.error('[Payments] notifyOrder failed:', err);
+  });
 
   // Generate Invoice PDF and send to Admin via Telegram
   try {

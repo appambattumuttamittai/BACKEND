@@ -4,8 +4,27 @@ import { notifyOrderPendingEmail, notifyOrderPaidEmail } from './email.service';
 
 const recentLeadAlerts = new Map<string, number>();
 
+export function escapeHtml(str: string | number | null | undefined): string {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>?/gm, '');
+}
+
 export async function sendTelegramMessage(message: string): Promise<void> {
   const config = getConfig();
+  if (!config.TELEGRAM_BOT_TOKEN || !config.TELEGRAM_CHAT_ID) {
+    console.warn('[Telegram] BOT_TOKEN or CHAT_ID missing. Skipping message.');
+    return;
+  }
+
   try {
     await axios.post(
       `https://api.telegram.org/bot${config.TELEGRAM_BOT_TOKEN}/sendMessage`,
@@ -14,10 +33,25 @@ export async function sendTelegramMessage(message: string): Promise<void> {
         text: message,
         parse_mode: 'HTML',
       },
-      { timeout: 5000 }
+      { timeout: 15000 }
     );
-  } catch (err) {
-    console.error('Telegram notification failed (non-fatal):', (err as Error).message);
+  } catch (err: any) {
+    console.error('Telegram HTML notification failed:', err?.response?.data || err?.message);
+    // Fallback: retry as plain text without HTML formatting if Telegram rejected tags or special chars
+    try {
+      const plain = stripHtml(message);
+      await axios.post(
+        `https://api.telegram.org/bot${config.TELEGRAM_BOT_TOKEN}/sendMessage`,
+        {
+          chat_id: config.TELEGRAM_CHAT_ID,
+          text: plain,
+        },
+        { timeout: 15000 }
+      );
+      console.log('[Telegram] Successfully sent notification in plain text fallback mode.');
+    } catch (retryErr: any) {
+      console.error('Telegram plain text retry also failed:', retryErr?.response?.data || retryErr?.message);
+    }
   }
 }
 
@@ -54,14 +88,14 @@ export async function notifyOrderPending(order: {
   const message = `
 🛒 <b>New Customer on Order Page!</b>
 
-👤 <b>Name:</b> ${order.customerName}
-📱 <b>Phone:</b> <code>${order.phone}</code>
-📦 <b>Order:</b> ${order.weight}
+👤 <b>Name:</b> ${escapeHtml(order.customerName)}
+📱 <b>Phone:</b> <code>${escapeHtml(order.phone)}</code>
+📦 <b>Order:</b> ${escapeHtml(order.weight)}
 💰 <b>Amount:</b> ₹${order.price}
-🚚 <b>Delivery:</b> ${order.deliveryMethod}
-📍 <b>Address:</b> ${order.streetAddress}
-🏙️ <b>City:</b> ${order.city}
-🆔 <b>Order ID:</b> <code>${order.id.slice(-8).toUpperCase()}</code>
+🚚 <b>Delivery:</b> ${escapeHtml(order.deliveryMethod)}
+📍 <b>Address:</b> ${escapeHtml(order.streetAddress)}
+🏙️ <b>City:</b> ${escapeHtml(order.city)}
+🆔 <b>Order ID:</b> <code>${escapeHtml(order.id.slice(-8).toUpperCase())}</code>
 ⏰ <b>Time:</b> ${time}
 
 ⏳ <i>Waiting for payment...</i>
@@ -104,16 +138,16 @@ export async function notifyOrder(order: {
   const message = `
 ${emoji} <b>Mutta Mittai — Order ${order.status === 'PAID' ? 'PAID ✅' : 'Update'}</b>
 
-🆔 <b>Order ID:</b> <code>${order.id.slice(-8).toUpperCase()}</code>
-👤 <b>Customer:</b> ${order.customerName}
-📱 <b>Phone:</b> <code>${order.phone}</code>
-📦 <b>Items:</b> ${order.weight}
+🆔 <b>Order ID:</b> <code>${escapeHtml(order.id.slice(-8).toUpperCase())}</code>
+👤 <b>Customer:</b> ${escapeHtml(order.customerName)}
+📱 <b>Phone:</b> <code>${escapeHtml(order.phone)}</code>
+📦 <b>Items:</b> ${escapeHtml(order.weight)}
 💰 <b>Amount:</b> ₹${order.price}
-📊 <b>Status:</b> <b>${order.status}</b>
-${order.deliveryMethod ? `🚚 <b>Delivery:</b> ${order.deliveryMethod}` : ''}
-${order.streetAddress ? `📍 <b>Address:</b> ${order.streetAddress}` : ''}
-🏙️ <b>City:</b> ${order.city}
-${order.transactionId ? `💳 <b>Transaction ID:</b> <code>${order.transactionId}</code>` : ''}
+📊 <b>Status:</b> <b>${escapeHtml(order.status)}</b>
+${order.deliveryMethod ? `🚚 <b>Delivery:</b> ${escapeHtml(order.deliveryMethod)}` : ''}
+${order.streetAddress ? `📍 <b>Address:</b> ${escapeHtml(order.streetAddress)}` : ''}
+🏙️ <b>City:</b> ${escapeHtml(order.city)}
+${order.transactionId ? `💳 <b>Transaction ID:</b> <code>${escapeHtml(order.transactionId)}</code>` : ''}
 ⏰ <b>Time:</b> ${time}
   `.trim();
 
@@ -146,9 +180,28 @@ export async function sendTelegramDocument(
     await axios.post(
       `https://api.telegram.org/bot${config.TELEGRAM_BOT_TOKEN}/sendDocument`,
       formData,
-      { timeout: 15000 }
+      { timeout: 20000 }
     );
-  } catch (err) {
-    console.error('Telegram sendDocument failed (non-fatal):', (err as Error).message);
+  } catch (err: any) {
+    console.error('Telegram sendDocument failed:', err?.response?.data || err?.message);
+    // If failed due to caption HTML error, retry with plain text caption
+    if (caption) {
+      try {
+        const formData = new FormData();
+        formData.append('chat_id', config.TELEGRAM_CHAT_ID);
+        formData.append('caption', stripHtml(caption));
+        const blob = new Blob([fileBuffer], { type: 'application/pdf' });
+        formData.append('document', blob, filename);
+
+        await axios.post(
+          `https://api.telegram.org/bot${config.TELEGRAM_BOT_TOKEN}/sendDocument`,
+          formData,
+          { timeout: 20000 }
+        );
+        console.log('[Telegram] Successfully sent document with plain text caption fallback.');
+      } catch (retryErr: any) {
+        console.error('Telegram sendDocument plain text retry also failed:', retryErr?.response?.data || retryErr?.message);
+      }
+    }
   }
 }

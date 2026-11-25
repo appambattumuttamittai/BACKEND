@@ -148,11 +148,13 @@ export function generateOrderInvoicePDF(order: OrderInvoiceData): Buffer {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'Asia/Kolkata',
   });
   const shortDate = orderDate.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'Asia/Kolkata',
   });
 
   const parsedItems = parseOrderItems(order);
