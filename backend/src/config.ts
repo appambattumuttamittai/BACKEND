@@ -8,8 +8,16 @@ const envSchema = z.object({
     .default('3001')
     .transform((v) => parseInt(v, 10)),
   FRONTEND_URL: z.string().default('*'),
+  // Primary Admin (Admin 1)
   ADMIN_USERNAME: z.string().default('admin'),
   ADMIN_PASSWORD_HASH: z.string().default('$2b$10$placeholder_hash_change_me_asap'),
+  ADMIN_PASSWORD: z.string().optional().default(''),
+
+  // Secondary Admin (Admin 2)
+  ADMIN_2_USERNAME: z.string().optional().default(''),
+  ADMIN_2_PASSWORD_HASH: z.string().optional().default(''),
+  ADMIN_2_PASSWORD: z.string().optional().default(''),
+
   ADMIN_SESSION_SECRET: z.string().default('default-session-secret-change-me-32ch'),
   // OTP Provider selection ('firebase' | 'msg91')
   OTP_PROVIDER: z.string().default('firebase'),

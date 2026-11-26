@@ -23,9 +23,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       const session = request.session as unknown as Record<string, unknown>;
       session.adminAuthenticated = true;
+      session.adminUsername = username;
       await request.session.save();
 
-      return reply.send({ success: true, message: 'Logged in successfully' });
+      return reply.send({ success: true, message: 'Logged in successfully', username });
     }
   );
 
@@ -38,7 +39,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (!isAdminAuthenticated(request)) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
-    return reply.send({ authenticated: true, role: 'admin' });
+    const session = request.session as unknown as Record<string, unknown>;
+    return reply.send({
+      authenticated: true,
+      role: 'admin',
+      username: (session.adminUsername as string) || 'admin',
+    });
   });
 };
 
