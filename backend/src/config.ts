@@ -35,9 +35,9 @@ const envSchema = z.object({
   FIREBASE_PRIVATE_KEY: z.string().optional().default(''),
   FIREBASE_TEST_MODE: z
     .string()
-    .default('true')
+    .default('false')
     .transform((v) => v === 'true' || v === '1'),
-  FIREBASE_TEST_OTP: z.string().default('123456'),
+  FIREBASE_TEST_OTP: z.string().default(''),
   TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
   TELEGRAM_CHAT_ID: z.string().optional().default(''),
   GOOGLE_SERVICE_ACCOUNT_JSON: z.string().optional().default('{}'),

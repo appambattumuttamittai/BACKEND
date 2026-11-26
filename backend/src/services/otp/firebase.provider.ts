@@ -52,17 +52,12 @@ export const firebaseProvider: OtpProvider = {
   async verifyOtp(phone: string, code: string, sessionInfo?: string): Promise<boolean> {
     const config = getConfig();
 
-    // 1. If in Test Mode or test code matches, accept instantly
-    if (config.FIREBASE_TEST_MODE || !config.FIREBASE_API_KEY) {
-      return code.trim() === config.FIREBASE_TEST_OTP.trim();
+    // No test OTP or dummy code bypass allowed
+    if (!config.FIREBASE_API_KEY) {
+      return false;
     }
 
-    // 2. Also allow the configured test OTP even in non-test mode if specified
-    if (config.FIREBASE_TEST_OTP && code.trim() === config.FIREBASE_TEST_OTP.trim()) {
-      return true;
-    }
-
-    // 3. Real Firebase Identity Toolkit Verification
+    // Real Firebase Identity Toolkit Verification
     try {
       const response = await axios.post(
         `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${config.FIREBASE_API_KEY}`,

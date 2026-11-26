@@ -87,23 +87,22 @@ export async function validateOtp(
   code: string,
   sessionId?: string
 ): Promise<{ valid: boolean; sessionId: string | null }> {
-  const config = getConfig();
+  const trimmedCode = code.trim();
 
-  // 1. Support Firebase / Environment Test OTP if configured
+  // Completely block dummy / bypass OTPs (e.g. 123456, 098765)
   if (
-    config.FIREBASE_TEST_MODE &&
-    config.FIREBASE_TEST_OTP &&
-    code === config.FIREBASE_TEST_OTP
+    trimmedCode === '123456' ||
+    trimmedCode === '098765' ||
+    trimmedCode === '000000' ||
+    trimmedCode === '111111'
   ) {
-    if (sessionId) {
-      await prisma.otpSession
-        .update({
-          where: { id: sessionId },
-          data: { verified: true },
-        })
-        .catch(() => {});
+    const sessionCheck = sessionId
+      ? await prisma.otpSession.findUnique({ where: { id: sessionId } })
+      : null;
+    if (!sessionCheck || sessionCheck.otpCode !== trimmedCode) {
+      console.warn(`[OTP Validate] 🚫 Blocked dummy OTP attempt: ${trimmedCode}`);
+      return { valid: false, sessionId: null };
     }
-    return { valid: true, sessionId: sessionId || null };
   }
 
   if (sessionId) {
@@ -124,28 +123,27 @@ export async function validateOtp(
       data: { attempts: { increment: 1 } },
     });
 
-    // 2. Verify against Neon DB AppConfig stored OTP
     let isValid = false;
-    try {
-      const configOtp = await prisma.appConfig.findUnique({
-        where: { key: `otp:${sessionId}` },
-      });
-      if (configOtp) {
-        const data = JSON.parse(configOtp.value);
-        if (data.code === code && Date.now() <= data.expiresAt) {
-          isValid = true;
-        }
-      }
-    } catch (err) {
-      console.error('[OTP Validate] Error checking AppConfig OTP:', err);
+
+    // 1. Direct check against session otpCode stored in Neon DB
+    if (session.otpCode && session.otpCode === trimmedCode) {
+      isValid = true;
     }
 
-    // 3. Fallback to provider verify if not verified via DB OTP
+    // 2. Verify against Neon DB AppConfig stored OTP
     if (!isValid) {
       try {
-        isValid = await providerVerifyOtp(phone, code, sessionId);
-      } catch {
-        isValid = false;
+        const configOtp = await prisma.appConfig.findUnique({
+          where: { key: `otp:${sessionId}` },
+        });
+        if (configOtp) {
+          const data = JSON.parse(configOtp.value);
+          if (data.code === trimmedCode && Date.now() <= data.expiresAt) {
+            isValid = true;
+          }
+        }
+      } catch (err) {
+        console.error('[OTP Validate] Error checking AppConfig OTP:', err);
       }
     }
 
@@ -165,7 +163,7 @@ export async function validateOtp(
           value: JSON.stringify({
             sessionId,
             phone,
-            code,
+            code: trimmedCode,
             verified: true,
             verifiedAt: new Date().toISOString(),
           }),
@@ -174,7 +172,7 @@ export async function validateOtp(
           value: JSON.stringify({
             sessionId,
             phone,
-            code,
+            code: trimmedCode,
             verified: true,
             verifiedAt: new Date().toISOString(),
           }),
@@ -191,7 +189,6 @@ export async function validateOtp(
     return { valid: true, sessionId };
   }
 
-  // Fallback if no sessionId provided
-  const verified = await providerVerifyOtp(phone, code, sessionId);
-  return { valid: verified, sessionId: sessionId || null };
+  // Without a valid session ID, reject immediately
+  return { valid: false, sessionId: null };
 }
